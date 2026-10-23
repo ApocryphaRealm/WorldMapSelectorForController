@@ -308,6 +308,8 @@ namespace WMS::MapChooser
         return true;
     }
 
+    RE::TESWorldSpace* CurrentWorldspace() { return GetCurrentWorldspace(); }
+
     bool IsActive()
     {
         std::scoped_lock lock(actionsLock);

@@ -2,6 +2,7 @@
 #include "MapChooser.h"
 #include "MapChooserInput.h"
 #include "MapMenuKeyHint.h"
+#include "MapPanel.h"
 
 namespace WMS::MapChooserInput
 {
@@ -62,8 +63,13 @@ namespace WMS::MapChooserInput
                         // Skyrim maps Escape, Tab, and controller Back buttons to its logical Cancel event.
                         const bool isCancel = userEvents && button->GetUserEvent() == userEvents->cancel;
 
-                        if (isCancel && MapChooser::Dismiss()) {
+                        if (isCancel && (MapChooser::Dismiss() || MapPanel::Dismiss())) {
                             return RE::BSEventNotifyControl::kStop;
+                        }
+
+                        // While the panel is open it reads its own input through the menu framework.
+                        if (MapPanel::IsOpen()) {
+                            continue;
                         }
 
                         // One keyboard key and one controller button, read from [Controls]. 0 turns a device off.
@@ -87,8 +93,13 @@ namespace WMS::MapChooserInput
 
                         SKSE::log::debug("Map chooser {} 0x{:X} pressed in MapMenu; opening the chooser.", isKey ? "key" : "button", code);
                         if (isKey) ++opensFromKeyboard; else ++opensFromGamepad;
-                        // MapChooser::Open repeats the menu-state checks (another message box, MapMenu open) before showing anything.
-                        MapChooser::Open();
+                        // The list panel when the menu framework is there, else the message box. Both repeat the
+                        // menu-state checks (another message box, MapMenu open) before showing anything.
+                        if (MapPanel::IsAvailable()) {
+                            MapPanel::Open();
+                        } else {
+                            MapChooser::Open();
+                        }
                         break;
                     }
 

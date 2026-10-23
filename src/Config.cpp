@@ -18,12 +18,17 @@ namespace WMS::Config
         // and DEFAULT-KEYS.md.
         std::uint32_t mapMenuKey      = 0x2E;   // DirectInput scan code: C
         std::uint32_t mapMenuButton   = 0x0001; // XInput button mask: D-pad up
-        bool persistSelection         = true;
-        bool showMapMenuKeyHint           = true;
-        bool showMapMenuKeyHintOnLocalMap = false;
+        // Atomic: the settings page writes these on the render thread while the game and input threads read them.
+        std::atomic<bool> persistSelection             { true };
+        std::atomic<bool> showMapMenuKeyHint           { true };
+        std::atomic<bool> showMapMenuKeyHintOnLocalMap { false };
         std::size_t mapsPerPage           = 6;
         bool showCancelButton             = true;
-        bool showClearSelectionButton     = true;
+        std::atomic<bool> showClearSelectionButton     { true };
+        // [Panel] - defaults match the shipped INI (rule 16).
+        std::atomic<int> panelSide        { static_cast<int>(PanelSide::kRight) };
+        std::atomic<int> panelWidth       { kPanelWidthDefault };
+        std::atomic<int> panelTextScale   { kTextScaleDefault };
         std::vector<std::string> includedWorldspaces;
         std::vector<std::string> excludedWorldspaces { "Falskaar" };
 
@@ -150,6 +155,38 @@ namespace WMS::Config
             else { SKSE::log::debug("{} not specified. Keeping default.", key); }
         }
 
+        void ReadBool(const CSimpleIniA& ini, const char* key, std::atomic<bool>& setting)
+        {
+            bool value = setting.load();
+            ReadBool(ini, key, value);
+            setting = value;
+        }
+
+        // [Panel] Side: Right or Left. Anything else keeps the default (Right).
+        void ReadPanelSide(const CSimpleIniA& ini)
+        {
+            if (const char* configured = ini.GetValue("Panel", "Side")) {
+                if (Utilities::EqualsIgnoreCase(configured, "right")) panelSide = static_cast<int>(PanelSide::kRight);
+                else if (Utilities::EqualsIgnoreCase(configured, "left")) panelSide = static_cast<int>(PanelSide::kLeft);
+                else { SKSE::log::warn("Invalid [Panel] Side \"{}\"; expected Right or Left. Keeping Right.", configured); }
+            }
+        }
+
+        // A whole number in [minimum, maximum]; anything else keeps the default.
+        void ReadPanelInt(const CSimpleIniA& ini, const char* key, int minimum, int maximum, std::atomic<int>& setting)
+        {
+            const char* configured = ini.GetValue("Panel", key);
+            if (!configured) return;
+            int parsed = 0;
+            const std::string_view text = Trim(configured);
+            const auto result = std::from_chars(text.data(), text.data() + text.size(), parsed, 10);
+            if (result.ec != std::errc{} || result.ptr != text.data() + text.size() || parsed < minimum || parsed > maximum) {
+                SKSE::log::warn("Invalid [Panel] {} \"{}\"; expected {} through {}. Keeping {}.", key, configured, minimum, maximum, setting.load());
+                return;
+            }
+            setting = parsed;
+        }
+
         void ReadMapsPerPage(const CSimpleIniA& ini)
         {
             if (const char* configured = ini.GetValue("Behavior", "MapsPerPage")) {
@@ -209,10 +246,14 @@ namespace WMS::Config
         ReadBool(ini, "PersistSelection", persistSelection);
         ReadWorldspaceList(ini, "IncludedWorldspaces", includedWorldspaces);
         ReadWorldspaceList(ini, "ExcludedWorldspaces", excludedWorldspaces);
+        ReadPanelSide(ini);
+        ReadPanelInt(ini, "WidthPercent", kPanelWidthMin, kPanelWidthMax, panelWidth);
+        ReadPanelInt(ini, "TextScalePercent", kTextScaleMin, kTextScaleMax, panelTextScale);
 
         SKSE::log::info(
-            "Loaded configuration: LogLevel={}, MapMenuKey=0x{:02X}, MapMenuButton=0x{:04X}, ShowMapMenuKeyHint={}, ShowMapMenuKeyHintOnLocalMap={}, MapsPerPage={}, ShowCancelButton={}, ShowClearSelectionButton={}, PersistSelection={}, IncludedWorldspaces={}, ExcludedWorldspaces={}.",
-            spdlog::level::to_string_view(logLevel), mapMenuKey, mapMenuButton, showMapMenuKeyHint, showMapMenuKeyHintOnLocalMap, mapsPerPage, showCancelButton, showClearSelectionButton, persistSelection,
+            "Loaded configuration: LogLevel={}, MapMenuKey=0x{:02X}, MapMenuButton=0x{:04X}, ShowMapMenuKeyHint={}, ShowMapMenuKeyHintOnLocalMap={}, MapsPerPage={}, ShowCancelButton={}, ShowClearSelectionButton={}, PersistSelection={}, Panel Side={}, WidthPercent={}, TextScalePercent={}, IncludedWorldspaces={}, ExcludedWorldspaces={}.",
+            spdlog::level::to_string_view(logLevel), mapMenuKey, mapMenuButton, showMapMenuKeyHint.load(), showMapMenuKeyHintOnLocalMap.load(), mapsPerPage, showCancelButton, showClearSelectionButton.load(), persistSelection.load(),
+            panelSide.load() == static_cast<int>(PanelSide::kLeft) ? "Left" : "Right", panelWidth.load(), panelTextScale.load(),
             includedWorldspaces.empty() ? "<all>" : fmt::format("{} entr{}", includedWorldspaces.size(), includedWorldspaces.size() == 1 ? "y" : "ies"),
             excludedWorldspaces.empty() ? "<none>" : fmt::format("{} entr{}", excludedWorldspaces.size(), excludedWorldspaces.size() == 1 ? "y" : "ies")
         );
@@ -257,6 +298,60 @@ namespace WMS::Config
     std::size_t GetMapsPerPage()           { return mapsPerPage; }
     bool GetShowCancelButton()             { return showCancelButton; }
     bool GetShowClearSelectionButton()     { return showClearSelectionButton; }
+    PanelSide GetPanelSide()        { return panelSide.load() == static_cast<int>(PanelSide::kLeft) ? PanelSide::kLeft : PanelSide::kRight; }
+    int GetPanelWidthPercent()      { return panelWidth.load(); }
+    int GetPanelTextScalePercent()  { return panelTextScale.load(); }
+
+    void SetPanelSide(PanelSide side)          { panelSide = static_cast<int>(side); }
+    void SetPanelWidthPercent(int percent)     { panelWidth = std::clamp(percent, kPanelWidthMin, kPanelWidthMax); }
+    void SetPanelTextScalePercent(int percent) { panelTextScale = std::clamp(percent, kTextScaleMin, kTextScaleMax); }
+    void SetPersistSelection(bool value)             { persistSelection = value; }
+    void SetShowMapMenuKeyHint(bool value)           { showMapMenuKeyHint = value; }
+    void SetShowMapMenuKeyHintOnLocalMap(bool value) { showMapMenuKeyHintOnLocalMap = value; }
+    void SetShowClearSelectionButton(bool value)     { showClearSelectionButton = value; }
+
+    std::string GetIniPath() { return configPath; }
+
+    bool Save()
+    {
+        // Load the file first so its comments and every key the page does not own are written back unchanged.
+        CSimpleIniA ini;
+        const auto loadResult = ini.LoadFile(configPath.c_str());
+        if (loadResult < SI_OK) {
+            SKSE::log::warn("Could not read {} before saving (error {}); writing the page's settings into a new file.", configPath, loadResult);
+        }
+        const auto boolText = [](bool value) { return value ? "true" : "false"; };
+        ini.SetValue("Behavior", "PersistSelection", boolText(persistSelection.load()));
+        ini.SetValue("Behavior", "ShowMapMenuKeyHint", boolText(showMapMenuKeyHint.load()));
+        ini.SetValue("Behavior", "ShowMapMenuKeyHintOnLocalMap", boolText(showMapMenuKeyHintOnLocalMap.load()));
+        ini.SetValue("Behavior", "ShowClearSelectionButton", boolText(showClearSelectionButton.load()));
+        ini.SetValue("Panel", "Side", GetPanelSide() == PanelSide::kLeft ? "Left" : "Right");
+        ini.SetValue("Panel", "WidthPercent", std::to_string(panelWidth.load()).c_str());
+        ini.SetValue("Panel", "TextScalePercent", std::to_string(panelTextScale.load()).c_str());
+
+        const auto saveResult = ini.SaveFile(configPath.c_str());
+        if (saveResult < SI_OK) {
+            SKSE::log::error("Could not write {} (error {}).", configPath, static_cast<int>(saveResult));
+            return false;
+        }
+        SKSE::log::info("Saved settings: Side={}, WidthPercent={}, TextScalePercent={}, PersistSelection={}, ShowMapMenuKeyHint={}, ShowMapMenuKeyHintOnLocalMap={}, ShowClearSelectionButton={}.",
+            GetPanelSide() == PanelSide::kLeft ? "Left" : "Right", panelWidth.load(), panelTextScale.load(), persistSelection.load(),
+            showMapMenuKeyHint.load(), showMapMenuKeyHintOnLocalMap.load(), showClearSelectionButton.load());
+        return true;
+    }
+
+    void RestoreDefaults()
+    {
+        panelSide = static_cast<int>(PanelSide::kRight);
+        panelWidth = kPanelWidthDefault;
+        panelTextScale = kTextScaleDefault;
+        persistSelection = true;
+        showMapMenuKeyHint = true;
+        showMapMenuKeyHintOnLocalMap = false;
+        showClearSelectionButton = true;
+        SKSE::log::info("Settings page: defaults restored.");
+    }
+
     bool IsWorldspaceIncluded(std::string_view editorID)
     {
         return includedWorldspaces.empty() || std::ranges::any_of(includedWorldspaces, [&](const auto& included) { return Utilities::EqualsIgnoreCase(editorID, included); });

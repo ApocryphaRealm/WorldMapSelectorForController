@@ -1,6 +1,7 @@
 #include "Diagnostics.h"
 #include "MapMenuEvents.h"
 #include "MapMenuKeyHint.h"
+#include "MapPanel.h"
 #include "MapSelection.h"
 #include "MapSwitchFlow.h"
 #include "WorldspaceOverride.h"
@@ -32,6 +33,7 @@ namespace WMS::MapMenuEvents
                         MapMenuKeyHint::Show();
                     } else {
                         WorldspaceOverride::ResetSession();
+                        MapPanel::OnMapMenuClosed();
 
                         // A map switch deliberately closes and reopens MapMenu.
                         // Do not consume a one-shot selection during that handoff.

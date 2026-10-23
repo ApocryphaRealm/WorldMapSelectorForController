@@ -5,6 +5,8 @@
 #include "Strings.h"
 #include "MapChooserInput.h"
 #include "MapMenuEvents.h"
+#include "MapPanel.h"
+#include "SettingsPage.h"
 #include "MapMarkerOverride.h"
 #include "RoutedMarkerOverride.h"
 #include "WorldspaceCatalog.h"
@@ -22,6 +24,10 @@ namespace
         if (message->type == SKSE::MessagingInterface::kPostLoad) {
             // DevBench/TestBench answers its interface request from kPostLoad on; retried at kDataLoaded (rule 17).
             WMS::DevBenchTool::Init(false);
+        } else if (message->type == SKSE::MessagingInterface::kPostPostLoad) {
+            // The menu framework has loaded by now: the map list panel window and the settings page.
+            WMS::MapPanel::Register();
+            WMS::SettingsPage::Register();
         } else if (message->type == SKSE::MessagingInterface::kInputLoaded) {
             // Skyrim's input devices and input event source now exist,
             // so the chooser can safely register its keyboard listener.

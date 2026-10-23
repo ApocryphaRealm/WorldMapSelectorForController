@@ -61,6 +61,13 @@ add_library(
         src/MapChooser.cpp
         src/MapChooserInput.cpp
         src/MapChooserInput.h
+        src/MapPanel.cpp
+        src/MapPanel.h
+        src/PreciseSlider.h
+        src/SettingsPage.cpp
+        src/SettingsPage.h
+        src/SKSEMenuFramework.h
+        src/Toggle.h
         src/MapMenuEvents.cpp
         src/MapMenuKeyHint.cpp
         src/MapMenuKeyHint.h

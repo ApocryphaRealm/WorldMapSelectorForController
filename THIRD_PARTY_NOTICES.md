@@ -27,6 +27,7 @@ other third-party projects used to build or run WorldMapSelector.
 | [JSON for Modern C++](https://github.com/nlohmann/json) | MIT | Copyright (c) 2013-2025 Niels Lohmann. |
 | [DirectXMath](https://github.com/microsoft/DirectXMath) | MIT | Copyright (c) Microsoft Corporation. |
 | [DirectX Tool Kit](https://github.com/microsoft/DirectXTK) | MIT | Copyright (c) Microsoft Corporation. |
+| SKSE Menu Framework consumer header (`src/SKSEMenuFramework.h`), from [SKSE-Menu-Framework-3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3), copied 2026-08-24 while that repository was LGPL-2.1; modified to prefer the Apocrypha Menu Framework | LGPL-2.1 (permits its use in this GPL-3.0-or-later work) | QTR-Modding and contributors. Used only to call the menu framework's public exports by name; nothing from the framework is linked. |
 | [devbench](https://github.com/alandtse/devbench) consumer API (`src/DevBench/DevBenchAPI.h`, `.cpp`) | MIT (separate from devbench's own GPL-3.0) | Copyright (c) 2026 Alan Tse and devbench contributors. Notice: `src/DevBench/DevBenchAPI.LICENSE.txt`. |
 
 The exact dependency revisions used by a build are pinned by `vcpkg.json`, its
