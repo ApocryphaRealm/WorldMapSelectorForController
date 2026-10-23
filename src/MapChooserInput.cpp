@@ -67,8 +67,11 @@ namespace WMS::MapChooserInput
                             return RE::BSEventNotifyControl::kStop;
                         }
 
-                        // While the panel is open it reads its own input through the menu framework.
-                        if (MapPanel::IsOpen()) {
+                        // While the panel is open it reads its own input through the menu framework. With the panel
+                        // available, the trigger is also read there (OpenPanelFromTrigger), where the press can be taken
+                        // out of the game's input before any other plugin's sink or a Papyrus OnKeyDown/OnKeyUp sees it;
+                        // this sink only sees what is left, so it never opens the panel itself.
+                        if (MapPanel::IsOpen() || MapPanel::IsAvailable()) {
                             continue;
                         }
 
@@ -124,6 +127,40 @@ namespace WMS::MapChooserInput
 
         SKSE::log::info("Registered the world-map chooser trigger: key 0x{:02X}, controller button 0x{:04X} (MapMenu only).",
             Config::GetMapMenuKey(), Config::GetMapMenuButton());
+        return true;
+    }
+
+    bool IsTrigger(const RE::ButtonEvent& button)
+    {
+        const auto code = button.GetIDCode();
+        if (button.GetDevice() == RE::INPUT_DEVICE::kKeyboard) return Config::GetMapMenuKey() != 0 && code == Config::GetMapMenuKey();
+        if (button.GetDevice() == RE::INPUT_DEVICE::kGamepad) return Config::GetMapMenuButton() != 0 && code == Config::GetMapMenuButton();
+        return false;
+    }
+
+    bool OpenPanelFromTrigger(const RE::ButtonEvent& button)
+    {
+        if (!button.IsDown() || !IsTrigger(button) || MapPanel::IsOpen()) return false;
+        const bool isKey = button.GetDevice() == RE::INPUT_DEVICE::kKeyboard;
+        if (!IsMapMenuOpen()) {
+            // Outside the world map the press belongs to the game and every other mod (Simplest Horses' horse call on
+            // D-pad up, for one): left alone.
+            static bool loggedOutside = false;
+            ++ignoredOutsideMap;
+            if (!loggedOutside) {
+                loggedOutside = true;
+                SKSE::log::debug("Map chooser {} 0x{:X} pressed outside MapMenu; passed on to the game (logged once).", isKey ? "key" : "button", button.GetIDCode());
+            }
+            return false;
+        }
+        lastInputWasGamepad = !isKey;
+        MapPanel::Open();
+        if (!MapPanel::IsOpen()) {
+            SKSE::log::debug("Map chooser {} 0x{:X} pressed in MapMenu, but the panel did not open (a message box is up); passed on.", isKey ? "key" : "button", button.GetIDCode());
+            return false;
+        }
+        if (isKey) ++opensFromKeyboard; else ++opensFromGamepad;
+        SKSE::log::debug("Map chooser {} 0x{:X} pressed in MapMenu; the panel opened and the press is kept from the game and other mods.", isKey ? "key" : "button", button.GetIDCode());
         return true;
     }
 

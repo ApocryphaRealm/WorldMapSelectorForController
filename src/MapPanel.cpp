@@ -13,6 +13,7 @@
 #include "MapPanel.h"
 #include "MapSelection.h"
 #include "MapSwitchFlow.h"
+#include "PanelStyle.h"
 #include "Strings.h"
 #include "WorldspaceCatalog.h"
 
@@ -212,9 +213,59 @@ namespace WMS::MapPanel
             return true;
         }
 
+        // PRESSES KEPT FROM THE GAME AND OTHER MODS (the owner, 2026-10-23: "make sure that the world map selector swallows
+        // whatever key is pressed so that it doesn't trigger another hotkey that isn't relevant"). This callback runs inside
+        // the menu framework's hook on the game's input dispatch (AMF Input.cpp PollInputDevicesHook::thunk): an event it
+        // claims is unlinked from the list BEFORE the list is sent to the input sinks - SKSE's own sink among them, which
+        // is where every Papyrus OnKeyDown / OnKeyUp / OnControlDown comes from (skse64 Hooks_Event.cpp adds
+        // g_inputEventHandler to the InputEventDispatcher; PapyrusEvents.cpp turns its events into those calls). So a
+        // claimed press reaches no SKSE plugin's sink and no script. Every press the panel claims is remembered until its
+        // release, and the held repeats and the release are claimed too, even after the panel has closed: Simplest Horses
+        // calls the horse on the RELEASE of its key (OnKeyUp), so a press kept but a release passed on would still act.
+        // Game thread only.
+        std::vector<std::uint64_t> claimedHeld;
+        std::atomic<int> claimedHeldCount { 0 };   // for the DevBench state (another thread)
+
+        std::uint64_t ButtonId(const RE::ButtonEvent& button)
+        {
+            return (static_cast<std::uint64_t>(button.GetDevice()) << 32) | button.GetIDCode();
+        }
+
+        bool ClaimUntilReleased(const RE::ButtonEvent& button)
+        {
+            const auto id = ButtonId(button);
+            const auto it = std::find(claimedHeld.begin(), claimedHeld.end(), id);
+            if (it == claimedHeld.end()) return false;
+            if (button.Value() == 0.0f) {
+                claimedHeld.erase(it);
+                claimedHeldCount = static_cast<int>(claimedHeld.size());
+                SKSE::log::debug("Map list panel: release of device {} code 0x{:X} kept from the game.", static_cast<std::uint32_t>(button.GetDevice()), button.GetIDCode());
+            }
+            return true;
+        }
+
+        void RememberClaimed(const RE::ButtonEvent& button)
+        {
+            const auto id = ButtonId(button);
+            if (std::find(claimedHeld.begin(), claimedHeld.end(), id) == claimedHeld.end()) claimedHeld.push_back(id);
+            claimedHeldCount = static_cast<int>(claimedHeld.size());
+        }
+
         bool __stdcall OnInputEvent(RE::InputEvent* event)
         {
-            if (!event || static_cast<State>(state.load()) == State::kClosed) return false;
+            if (!event) return false;
+
+            if (const auto* pressed = event->AsButtonEvent()) {
+                // Held repeats and the release of a press already claimed.
+                if (ClaimUntilReleased(*pressed)) return true;
+                // The chooser's trigger in the world map: open the panel and keep the press from everyone else.
+                if (static_cast<State>(state.load()) == State::kClosed && MapChooserInput::OpenPanelFromTrigger(*pressed)) {
+                    RememberClaimed(*pressed);
+                    return true;
+                }
+            }
+
+            if (static_cast<State>(state.load()) == State::kClosed) return false;
 
             if (event->GetEventType() == RE::INPUT_EVENT_TYPE::kThumbstick) {
                 const auto* stick = static_cast<const RE::ThumbstickEvent*>(event);
@@ -239,6 +290,8 @@ namespace WMS::MapPanel
             if (!button) return false;
             const Key key = Classify(*button);
             if (key == Key::kNone) return false;
+            // Its held repeats and release are claimed too, even if the panel closes first (ClaimUntilReleased).
+            if (button->IsDown()) RememberClaimed(*button);
 
             if (button->IsUp()) {
                 if (key == Key::kConfirm) heldButtons &= ~static_cast<std::uint32_t>(kHeldConfirm);
@@ -365,11 +418,15 @@ namespace WMS::MapPanel
 
             SetNextWindowPos(ImVec2{ g.x, g.y }, ImGuiCond_Always);
             SetNextWindowSize(ImVec2{ g.w, g.h }, ImGuiCond_Always);
+            // A style file another mod ships (Norden UI - Black) recolours the panel; without one this pushes nothing.
+            PanelStyle::Push();
             if (Begin("##WMSFCMapPanel", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                       ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav)) {
                 SetWindowFontScale(static_cast<float>(Config::GetPanelTextScalePercent()) / 100.0f);
 
+                const bool titlePushed = PanelStyle::PushRowText(true);
                 Text("%s", TR("WMSFC_PanelTitle", "World Maps").c_str());
+                PanelStyle::PopRowText(titlePushed);
                 Separator();
 
                 // The list fills the panel between the title and the hint line, and scrolls (wheel, or following the highlight).
@@ -381,7 +438,18 @@ namespace WMS::MapPanel
                     for (int i = 0; i < count; ++i) {
                         const auto& row = snapshot[i];
                         const auto id = fmt::format("{}##row{}", row.label, i);
-                        if (Selectable(id.c_str(), i == highlight)) {
+                        if (i == highlight && PanelStyle::IsActive()) {
+                            // The style's own highlight, drawn under the row where ImGui would fill it.
+                            const auto* rowStyle = GetStyle();
+                            const float halfGap = rowStyle ? rowStyle->ItemSpacing.y * 0.5f : 0.0f;
+                            const ImVec2 at = GetCursorScreenPos();
+                            const ImVec2 room = GetContentRegionAvail();
+                            PanelStyle::DrawRowHighlight(GetWindowDrawList(), at.x, at.y - halfGap, at.x + room.x, at.y + GetTextLineHeight() + halfGap);
+                        }
+                        const bool rowTextPushed = PanelStyle::PushRowText(i == highlight);
+                        const bool rowChosen = Selectable(id.c_str(), i == highlight);
+                        PanelStyle::PopRowText(rowTextPushed);
+                        if (rowChosen) {
                             highlight = i;
                             chosen = i;
                         }
@@ -407,11 +475,15 @@ namespace WMS::MapPanel
                 if (style) PopStyleColor(1);
             }
             End();
+            PanelStyle::Pop();
 
-            // The active theme's frame around the panel (Nordic knotwork under the Skyrim theme); nothing under a theme without one.
-            static DrawThemeFrameFn drawThemeFrame = GetMenuFrameworkFunction<DrawThemeFrameFn>("AMF_DrawThemeFrame");
-            if (drawThemeFrame) {
-                drawThemeFrame(GetForegroundDrawList(), g.x, g.y, g.x + g.w, g.y + g.h);
+            // The style's own edge when it draws one (bThemeFrame=false); otherwise the active theme's frame around the panel
+            // (Nordic knotwork under the Skyrim theme), nothing under a theme without one.
+            if (!PanelStyle::DrawPanelEdge(GetForegroundDrawList(), g.x, g.y, g.x + g.w, g.y + g.h)) {
+                static DrawThemeFrameFn drawThemeFrame = GetMenuFrameworkFunction<DrawThemeFrameFn>("AMF_DrawThemeFrame");
+                if (drawThemeFrame) {
+                    drawThemeFrame(GetForegroundDrawList(), g.x, g.y, g.x + g.w, g.y + g.h);
+                }
             }
 
             lastX = g.x; lastY = g.y; lastW = g.w; lastH = g.h;
@@ -439,6 +511,11 @@ namespace WMS::MapPanel
         }
         if (!HasRequiredExports()) {
             return false;
+        }
+        // The optional style file (Norden UI - Black ships one); its exports are checked here, once, off the render thread.
+        PanelStyle::Load();
+        if (PanelStyle::IsActive()) {
+            PanelStyle::HasRequiredExports();
         }
         // BlockUserInput: while open, the framework takes the controller, keyboard and mouse from the game (the map stays still).
         window = SKSEMenuFramework::AddWindow(Render, true);
@@ -521,10 +598,10 @@ namespace WMS::MapPanel
     {
         return fmt::format(
             R"({{"available":{},"open":{},"state":{},"rows":{},"highlight":{},"fakeRows":{},"scrollY":{:.1f},"scrollMaxY":{:.1f},)"
-            R"("rect":[{:.0f},{:.0f},{:.0f},{:.0f}],"side":"{}","widthPercent":{},"textScalePercent":{},"opens":{},"selections":{}}})",
+            R"("rect":[{:.0f},{:.0f},{:.0f},{:.0f}],"side":"{}","widthPercent":{},"textScalePercent":{},"opens":{},"selections":{},"claimedHeld":{},"style":{}}})",
             window != nullptr, IsOpen(), state.load(), lastRowCount.load(), lastHighlight.load(), fakeEntryCount.load(),
             lastScrollY.load(), lastScrollMaxY.load(), lastX.load(), lastY.load(), lastW.load(), lastH.load(),
             Config::GetPanelSide() == Config::PanelSide::kLeft ? "left" : "right", Config::GetPanelWidthPercent(),
-            Config::GetPanelTextScalePercent(), opens.load(), selections.load());
+            Config::GetPanelTextScalePercent(), opens.load(), selections.load(), claimedHeldCount.load(), PanelStyle::StateJson());
     }
 }

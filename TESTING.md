@@ -1,4 +1,4 @@
-# World Map Selector for Controller - in-game test steps (1.0.0, map list panel)
+# World Map Selector for Controller - in-game test steps (1.0.0, map list panel, panel style, presses kept)
 
 Written 2026-10-23. Build under test: the 1.0.0 package with the vertical map list panel and the settings page
 (commit 0e1fb60 and later). Run through Main Agent in the combined round (rule 69) when `instance:Njordlinger` is
@@ -38,6 +38,23 @@ free and no SkyrimSE / ModOrganizer process runs.
 | 8 | Width and Text size sliders: D-pad left/right | one unit (1%) per nudge (rule 68); the panel follows live |
 | 9 | Restart the game (game-relaunch.ps1) | `Loaded configuration: ... Panel Side=Left` - the setting persisted; set it back to Right afterwards (or Restore defaults) |
 | 10 | Keyboard/mouse: C opens; arrows / wheel move; Enter or a click chooses; Esc closes | as 1-6 |
+
+### Added 2026-10-23 (same 1.0.0): Norden UI - Black panel style, and presses kept from other mods
+
+Install also Norden UI - Black 1.1.0 (`7. current test builds\Skyrim - Norden UI - Black\Norden UI - Black 1.1.0 FOMOD`)
+with its "World Map Selector for Controller" option (auto-ticked when the WMS DLL is installed), so the mod folder holds
+`SKSE\Plugins\WorldMapSelectorForController_PanelStyle.ini`. Simplest Horses' horse call stays on D-pad up (the owner's
+`MCM\Settings\SimplestHorses.ini` `iHorse_hotkey = 266`, UVC's "Call Horse" row).
+
+| # | Action | Expect |
+|---|---|---|
+| 11 | Log at start | `Panel style "Norden UI - Black" read from ...WorldMapSelectorForController_PanelStyle.ini (theme frame off, line thickness 1.0)`; no `does not export` warning |
+| 12 | World map, D-pad up | the panel is black and opaque, white row text, the highlighted row has Norden's item-list selection (a faint slate band, light lines along its top and bottom fading to the right, a thin mark at its left), slate edge lines along the panel's top and bottom fading at both ends, no Nordic knotwork frame; screenshot it. `wmsfc.control {}`: `panel.style.active=true`, `name="Norden UI - Black"` |
+| 13 | Side, Width and Text size on the settings page (as 7-8) | still apply live with the style on |
+| 14 | Same press (D-pad up) in the world map with Simplest Horses on D-pad up | the chooser opens and the horse is NOT called (no whistle, no horse running up) - press, hold a second, release, B to close; WMS log (Debug) `the panel opened and the press is kept from the game and other mods` and `release of device 2 code 0x1 kept from the game`; `wmsfc.control {}` `panel.claimedHeld` back to 0 after the release |
+| 15 | Close the map, D-pad up in gameplay | the horse IS called (Simplest Horses works as before); WMS log `pressed outside MapMenu; passed on to the game` |
+| 16 | B, Esc, A, Enter and D-pad down while the panel is open | none of them reaches another mod or the map (the map does not back out on B; nothing bound to those buttons by another mod fires) |
+| 17 | Untick the option / delete `WorldMapSelectorForController_PanelStyle.ini`, restart | log `No panel style file`; the panel looks as 1.0.0 (theme colours and frame) |
 
 Driving without hands: TestBench `POST /api/tool/wmsfc.control` - `{}` state (the `panel` object: open, rows,
 highlight, scrollY, scrollMaxY, rect, side, widthPercent, textScalePercent), `{"op":"open"}`, `{"op":"dismiss"}`,

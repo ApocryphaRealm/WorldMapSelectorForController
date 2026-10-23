@@ -33,6 +33,20 @@ The panel is drawn by the [Apocrypha Menu Framework](https://www.nexusmods.com/s
 theme, and while it is open the framework holds the controller, keyboard and mouse so the map behind it stays
 still. Without the framework the plugin falls back to Skyrim's own message box (one row of maps per page).
 
+The buttons the chooser uses are kept from other mods: in the world map, the press that opens the panel (D-pad up / C),
+every key and button the panel acts on, and their releases never reach another mod's hotkey or a Papyrus key event
+(another mod's D-pad-up hotkey does not fire when the chooser opens). Outside the world map the same button works as
+before. This needs the Apocrypha Menu Framework; the message-box fallback does not hold presses.
+
+**Panel style.** A UI mod can give the panel its own look by shipping
+`SKSE/Plugins/WorldMapSelectorForController_PanelStyle.ini` (Norden UI - Black does, as an option of its installer).
+Its `[PanelStyle]` section holds, every key optional, colours as `#RRGGBB` or `#RRGGBBAA`: `sBackground` (the panel),
+`sText`, `sTextHighlighted` (the highlighted row and the title), `sTextDim` (the hint line), `sLine` (edge lines and
+separators), `sScrollbar`, `sHighlightBand`, `sHighlightLine` and `sHighlightMark` (the highlighted row's band, its
+lines along the top and bottom, and a mark at its left end), plus `bThemeFrame` (`false` draws the style's edge lines
+instead of the framework theme's frame) and `fLineThickness`. Without the file the panel wears the framework's theme.
+The text face stays the framework's.
+
 ## Features
 
 - Finds every worldspace with usable world-map data, including maps added by other mods.

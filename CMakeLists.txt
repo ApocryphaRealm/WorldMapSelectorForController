@@ -63,6 +63,8 @@ add_library(
         src/MapChooserInput.h
         src/MapPanel.cpp
         src/MapPanel.h
+        src/PanelStyle.cpp
+        src/PanelStyle.h
         src/PreciseSlider.h
         src/SettingsPage.cpp
         src/SettingsPage.h
