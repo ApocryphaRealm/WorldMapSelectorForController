@@ -116,6 +116,17 @@ Visual Studio 2022 or newer with the C++ workload (CMake and Ninja come with it)
 `VCPKG_ROOT` set. Then `build.bat` (it runs `configure.bat` on the first build, which initializes the
 CommonLibSSE NG submodule and lets vcpkg restore the dependencies). Output: `build/relwithdebinfo/`.
 
+## Maintainer note: release tags
+
+This repository is a fork, so it arrived carrying the upstream author's release tags `v1.0.0` through `v1.4.0`.
+Upstream's `v1.0.0` (Apocrypher00's commit `7b9a231`, "World Map Selector 1.0.0") collided with this mod's own
+first release number. On 2026-10-23, with the project owner's approval, it was renamed in THIS fork only: an
+annotated tag `upstream-v1.0.0` was created at the same commit `7b9a231` and pushed, then `v1.0.0` was deleted
+locally and from this fork's GitHub remote. Nothing upstream was touched - Apocrypher00's own repository still
+carries its `v1.0.0`. In this fork, `v1.0.0` now means World Map Selector for Controller 1.0.0. Upstream's
+`v1.1.0` to `v1.4.0` are left as they are. Fetch from the `upstream` remote with `--no-tags` (or delete the local
+`v1.0.0` again afterwards), or a plain fetch brings upstream's `v1.0.0` back locally.
+
 ## Licence
 
 Source authored for this project is released under the [Unlicense](UNLICENSE). The plugin binary links
