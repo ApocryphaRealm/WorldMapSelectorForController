@@ -8,7 +8,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
-## 1.0.0 - 2026-10-23 - untested
+## 1.0.0 - 2026-10-23 - working
 
 ### Added
 - wmsfc.control drives the panel: its rows, highlight, scroll and rectangle in the state; op=nav, op=select, op=settings, and a test-only op=fake that adds rows to prove the list scrolls.
