@@ -8,7 +8,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
-## 1.0.0 - 2026-10-23 - untested
+## 1.0.0 - 2026-10-23 - working
 
 ### Added
 - A panel style file: another mod can ship SKSE\Plugins\WorldMapSelectorForController_PanelStyle.ini ([PanelStyle]: sBackground, sText, sTextHighlighted, sTextDim, sLine, sScrollbar, sHighlightBand, sHighlightLine, sHighlightMark, bThemeFrame, fLineThickness; colours #RRGGBB or #RRGGBBAA, every key optional) to give the map list panel its own colours, row highlight and edge lines. Norden UI - Black 1.1.0 ships one in its "World Map Selector for Controller" option. Without the file the panel is drawn exactly as before. The DevBench state reports the style in use.
