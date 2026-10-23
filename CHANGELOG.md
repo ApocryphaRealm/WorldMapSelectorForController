@@ -23,6 +23,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 
 ### Fixed
 - Every choice in the world map now switches the map at once, however many times it is used in one visit: going back to the map of the world you are in while another map is shown, and [Clear Selection] while another map is shown, now close and reopen the map on your own world straight away, instead of only taking effect the next time the map was opened. The panel had taken the world you are in for the map on screen, so it treated that choice as "already showing" and did nothing. The message-box chooser's [Clear Selection] does the same.
+- A button the panel took is no longer able to eat a later press. The panel keeps each press it acts on (and its release) from the game and other mods until the release; if that release went missing - it can while a map switch closes and reopens the map - the button stayed marked as held, and the next press of it anywhere in the game (A: activate, accept) was swallowed. A new press of a marked button now ends the old mark and goes through. The panel's short wait after a choice also ends as soon as A or B is let go.
 
 ### Changed
 - The message-box chooser (Select World Map (1/N), paged left and right) is now the fallback for players without the Apocrypha Menu Framework; MapsPerPage and ShowCancelButton apply to it only. Which worldspaces are offered is unchanged from World Map Selector 1.4.0: every worldspace with map data of its own.

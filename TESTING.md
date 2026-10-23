@@ -7,7 +7,7 @@ free and no SkyrimSE / ModOrganizer process runs.
 ## Build under test
 
 - Package: `D:\Claude output\7. current test builds\Skyrim - World Map Selector for Controller\World Map Selector for Controller 1.0.0`
-- Packaged DLL sha256 starts `53D8F422` (the 2026-10-23 every-switch-immediate rebuild); check the installed DLL's hash matches before judging.
+- Packaged DLL sha256 starts `863BF0DE` (the 2026-10-23 every-switch-immediate + claim-end rebuild); check the installed DLL's hash matches before judging.
 - Needs the Apocrypha Menu Framework enabled (the profile's "Apocrypha Menu Framework" mod, 2.2.x or newer). Without it
   the plugin falls back to the old message box - that is a fallback, not this test.
 
@@ -72,6 +72,7 @@ third map). Screenshot after each switch.
 | 21 | D-pad up, choose Shivering Isles (A -> C) | highlight was on `Skyrim [Here/Selected]`; the map reopens on Shivering Isles at once; `MapMenu worldspace: name="Shivering Isles"` |
 | 22 | D-pad up, `[Clear Selection]`, A | highlight was on `Shivering Isles [Selected]`; HUD "World map selection cleared."; the map reopens on Skyrim at once; log `cleared the map selection; switching back to the player's map`, `Map selection: Default.`, `MapMenu worldspace: name="Skyrim"` |
 | 23 | D-pad up, choose Skyrim again (already showing) | the panel highlight is on `Skyrim [Here]`; log `chose Skyrim, the map already showing`; the map does NOT close and reopen |
+| 24 | Right after a switch (A held a moment on the choice), close the map and press A once on a door or NPC; then reopen the map, D-pad up, B to close the panel, close the map, press A again | A works in game on the FIRST press both times (activates). If a release went missing the log shows `pressed again before its release was seen; the old claim is dropped and this press is not kept`; `wmsfc.control {}` `panel.claimedHeld` is 0 once nothing is held. A press is never eaten in game |
 
 Driving without hands: TestBench `POST /api/tool/wmsfc.control` - `{}` state (the `panel` object: open, rows,
 highlight, scrollY, scrollMaxY, rect, side, widthPercent, textScalePercent), `{"op":"open"}`, `{"op":"dismiss"}`,

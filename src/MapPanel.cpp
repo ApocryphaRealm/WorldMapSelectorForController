@@ -233,7 +233,9 @@ namespace WMS::MapPanel
         // claimed press reaches no SKSE plugin's sink and no script. Every press the panel claims is remembered until its
         // release, and the held repeats and the release are claimed too, even after the panel has closed: Simplest Horses
         // calls the horse on the RELEASE of its key (OnKeyUp), so a press kept but a release passed on would still act.
-        // Game thread only.
+        // A claim covers ONE press: its held repeats and its release. It never takes a new press - a fresh press of a
+        // claimed button ends the old claim (its release was lost), so once the panel or MapMenu is closed nothing new is
+        // swallowed. Game thread only.
         std::vector<std::uint64_t> claimedHeld;
         std::atomic<int> claimedHeldCount { 0 };   // for the DevBench state (another thread)
 
@@ -247,9 +249,25 @@ namespace WMS::MapPanel
             const auto id = ButtonId(button);
             const auto it = std::find(claimedHeld.begin(), claimedHeld.end(), id);
             if (it == claimedHeld.end()) return false;
+            if (button.IsDown()) {
+                // A NEW press of a button still marked held: its release never came through (a release can go missing
+                // while a map switch closes and reopens MapMenu - batch 3, 05:29:39, A chose a row and no release
+                // followed). Kept, that stale mark would swallow this press wherever it lands - Activate, Jump, Accept in
+                // the game. The button was up in between, so the old claim is over: drop it and let this press be judged
+                // afresh (the panel still claims it below if it is one the open panel acts on).
+                claimedHeld.erase(it);
+                claimedHeldCount = static_cast<int>(claimedHeld.size());
+                SKSE::log::info("Map list panel: device {} code 0x{:X} pressed again before its release was seen; the old claim is dropped and this press is not kept.",
+                    static_cast<std::uint32_t>(button.GetDevice()), button.GetIDCode());
+                return false;
+            }
             if (button.Value() == 0.0f) {
                 claimedHeld.erase(it);
                 claimedHeldCount = static_cast<int>(claimedHeld.size());
+                // The release ends the drain's wait as well (returning here, it never reaches OnInputEvent's release case).
+                const Key key = Classify(button);
+                if (key == Key::kConfirm) heldButtons &= ~static_cast<std::uint32_t>(kHeldConfirm);
+                if (key == Key::kCancel) heldButtons &= ~static_cast<std::uint32_t>(kHeldCancel);
                 SKSE::log::debug("Map list panel: release of device {} code 0x{:X} kept from the game.", static_cast<std::uint32_t>(button.GetDevice()), button.GetIDCode());
             }
             return true;
