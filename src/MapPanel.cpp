@@ -9,6 +9,7 @@
 
 #include "Config.h"
 #include "MapChooser.h"
+#include "MapChooserInput.h"
 #include "MapPanel.h"
 #include "MapSelection.h"
 #include "MapSwitchFlow.h"
@@ -61,7 +62,7 @@ namespace WMS::MapPanel
             constexpr const char* required[] = {
                 "AddWindow", "igBegin", "igEnd", "igBeginChild_Str", "igEndChild", "igSelectable_Bool", "igSetScrollHereY",
                 "igSetNextWindowPos", "igSetNextWindowSize", "igGetMainViewport", "igGetForegroundDrawList_Nil", "igGetIO",
-                "igIsKeyPressed_Bool", "igIsKeyDown_Nil", "igIsMouseDown_Nil", "igSetWindowFontScale", "igIsItemHovered",
+                "RegisterInpoutEvent", "igIsMouseDown_Nil", "igGetStyle", "igPushStyleColor_Vec4", "igPopStyleColor", "igTextWrappedV", "igSetWindowFontScale", "igIsItemHovered",
                 "igTextV", "igTextDisabledV", "igSeparator", "igGetScrollY", "igGetScrollMaxY", "igGetFrameHeightWithSpacing",
                 "igGetTextLineHeightWithSpacing"
             };
@@ -75,7 +76,6 @@ namespace WMS::MapPanel
         }
 
         using DrawThemeFrameFn = bool (*)(void*, float, float, float, float);
-        using GetInputModeFn = std::uint32_t (*)();
 
         void RunOnMainThread(std::function<void()> task)
         {
@@ -100,6 +100,7 @@ namespace WMS::MapPanel
             }
 
             initialHighlight = -1;
+            int selectedRow = -1;
             for (const auto& option : options) {
                 auto label = option.displayName;
                 if (option.hasDuplicateDisplayName && !option.editorID.empty()) {
@@ -111,10 +112,13 @@ namespace WMS::MapPanel
                 else if (isHere) label += " " + TR("WMSFC_TagHere", "[Here]");
                 else if (isSelected) label += " " + TR("WMSFC_TagSelected", "[Selected]");
 
+                if (isSelected) selectedRow = static_cast<int>(built.size());
                 if (isHere && initialHighlight < 0) initialHighlight = static_cast<int>(built.size());
                 built.push_back({ .type = RowType::kMap, .worldspace = option.worldspace, .label = std::move(label),
                                   .displayName = option.displayName, .isCurrent = isHere });
             }
+
+            if (selectedRow >= 0) initialHighlight = selectedRow;
 
             // Test-only rows (DevBench op=fake) that prove the list scrolls when more maps exist than fit.
             const int fakes = fakeEntryCount.load();
@@ -163,22 +167,112 @@ namespace WMS::MapPanel
             }
         }
 
-        bool AnyPressed(std::initializer_list<ImGuiMCP::ImGuiKey> keys, bool repeat)
+        // THE PANEL'S KEYS AND BUTTONS come through the menu framework's input callback (SMF's RegisterInpoutEvent),
+        // which sees every game input event first - before the framework's own ImGui feed. Read from ImGui instead, the
+        // first controller press after any keyboard or mouse use was lost: the framework spends it switching its input
+        // mode (seen in game 2026-10-23, B did nothing once after the settings page had been used with the mouse). The
+        // callback claims (returns true for) the presses it handles while the panel is open; the mouse stays with ImGui.
+        enum : std::uint32_t { kHeldConfirm = 1, kHeldCancel = 2 };
+        std::atomic<std::uint32_t> heldButtons { 0 };   // A/Enter or B/Esc held since they acted, for the drain
+        std::atomic<bool> pendingCancel { false };
+        std::atomic<bool> lastDeviceGamepad { false };
+
+        enum class Key { kNone, kUp, kDown, kConfirm, kCancel };
+
+        Key Classify(const RE::ButtonEvent& button)
         {
-            for (const auto key : keys) {
-                if (ImGuiMCP::IsKeyPressed(key, repeat)) return true;
+            const auto code = button.GetIDCode();
+            if (button.GetDevice() == RE::INPUT_DEVICE::kGamepad) {
+                switch (code) {
+                    case 0x0001: return Key::kUp;        // D-pad up
+                    case 0x0002: return Key::kDown;      // D-pad down
+                    case 0x1000: return Key::kConfirm;   // A
+                    case 0x2000: return Key::kCancel;    // B
+                    default: return Key::kNone;
+                }
             }
-            return false;
+            if (button.GetDevice() == RE::INPUT_DEVICE::kKeyboard) {
+                switch (code) {
+                    case 0xC8: case 0x11: return Key::kUp;                    // Up arrow, W
+                    case 0xD0: case 0x1F: return Key::kDown;                  // Down arrow, S
+                    case 0x1C: case 0x9C: case 0x39: return Key::kConfirm;    // Enter, keypad Enter, Space
+                    case 0x01: case 0x0F: case 0x0E: return Key::kCancel;     // Escape, Tab, Backspace
+                    default: return Key::kNone;
+                }
+            }
+            return Key::kNone;
+        }
+
+        // Held direction repeats: first repeat after 0.35 s, then every 0.08 s (the game reports how long it is held).
+        bool RepeatDue(float heldSecs, float& lastRepeatAt)
+        {
+            if (heldSecs < 0.35f) return false;
+            if (heldSecs - lastRepeatAt < 0.08f) return false;
+            lastRepeatAt = heldSecs;
+            return true;
+        }
+
+        bool __stdcall OnInputEvent(RE::InputEvent* event)
+        {
+            if (!event || static_cast<State>(state.load()) == State::kClosed) return false;
+
+            if (event->GetEventType() == RE::INPUT_EVENT_TYPE::kThumbstick) {
+                const auto* stick = static_cast<const RE::ThumbstickEvent*>(event);
+                if (!stick->IsLeft() || static_cast<State>(state.load()) != State::kOpen) return false;
+                // One row per push past half way, repeating while held (the event carries no hold time, so count time here).
+                static int lastDir = 0;
+                static std::chrono::steady_clock::time_point pushedAt, lastStep;
+                const int dir = stick->yValue > 0.5f ? -1 : (stick->yValue < -0.5f ? 1 : 0);
+                const auto now = std::chrono::steady_clock::now();
+                if (dir != 0) lastDeviceGamepad = true;
+                if (dir != lastDir) {
+                    lastDir = dir;
+                    if (dir != 0) { pendingNavigate += dir; pushedAt = lastStep = now; }
+                } else if (dir != 0 && now - pushedAt > std::chrono::milliseconds(350) && now - lastStep > std::chrono::milliseconds(80)) {
+                    pendingNavigate += dir;
+                    lastStep = now;
+                }
+                return true;
+            }
+
+            const auto* button = event->AsButtonEvent();
+            if (!button) return false;
+            const Key key = Classify(*button);
+            if (key == Key::kNone) return false;
+
+            if (button->IsUp()) {
+                if (key == Key::kConfirm) heldButtons &= ~static_cast<std::uint32_t>(kHeldConfirm);
+                if (key == Key::kCancel) heldButtons &= ~static_cast<std::uint32_t>(kHeldCancel);
+                return true;
+            }
+            if (static_cast<State>(state.load()) != State::kOpen) return true;   // draining: swallow, nothing acts
+
+            lastDeviceGamepad = button->GetDevice() == RE::INPUT_DEVICE::kGamepad;
+            static float lastRepeatAt = 0.0f;
+            const bool fresh = button->IsDown();
+            if (fresh) lastRepeatAt = 0.0f;
+            switch (key) {
+                case Key::kUp:
+                    if (fresh || RepeatDue(button->HeldDuration(), lastRepeatAt)) pendingNavigate -= 1;
+                    break;
+                case Key::kDown:
+                    if (fresh || RepeatDue(button->HeldDuration(), lastRepeatAt)) pendingNavigate += 1;
+                    break;
+                case Key::kConfirm:
+                    if (fresh) { heldButtons |= kHeldConfirm; pendingSelect = true; }
+                    break;
+                case Key::kCancel:
+                    if (fresh) { heldButtons |= kHeldCancel; pendingCancel = true; }
+                    break;
+                default:
+                    break;
+            }
+            return true;
         }
 
         bool AnyReleaseOutstanding()
         {
-            using namespace ImGuiMCP;
-            for (const ImGuiKey key : { ImGuiKey_GamepadFaceDown, ImGuiKey_GamepadFaceRight, ImGuiKey_Enter, ImGuiKey_KeypadEnter,
-                     ImGuiKey_Escape, ImGuiKey_Tab, ImGuiKey_Backspace, ImGuiKey_Space }) {
-                if (IsKeyDown(key)) return true;
-            }
-            return IsMouseDown(ImGuiMouseButton_Left);
+            return heldButtons.load() != 0 || ImGuiMCP::IsMouseDown(ImGuiMCP::ImGuiMouseButton_Left);
         }
 
         void BeginDrain(const char* why)
@@ -256,19 +350,18 @@ namespace WMS::MapPanel
             const int count = static_cast<int>(snapshot.size());
             highlight = count > 0 ? std::clamp(highlight, 0, count - 1) : 0;
 
-            // Input: our own highlight, not ImGui's navigation (the window is NoNav), so one press moves one row.
-            int move = pendingNavigate.exchange(0);
-            if (AnyPressed({ ImGuiKey_GamepadDpadUp, ImGuiKey_GamepadLStickUp, ImGuiKey_UpArrow, ImGuiKey_W }, true)) --move;
-            if (AnyPressed({ ImGuiKey_GamepadDpadDown, ImGuiKey_GamepadLStickDown, ImGuiKey_DownArrow, ImGuiKey_S }, true)) ++move;
+            // Input: our own highlight, not ImGui's navigation (the window is NoNav), so one press moves one row. The keys and
+            // buttons arrive through OnInputEvent; the mouse (hover, click, wheel) through ImGui below.
+            const int move = pendingNavigate.exchange(0);
             if (move != 0 && count > 0) {
                 highlight = std::clamp(highlight + move, 0, count - 1);
                 scrollToHighlight = true;
             }
             int chosen = -1;
-            if (pendingSelect.exchange(false) || AnyPressed({ ImGuiKey_GamepadFaceDown, ImGuiKey_Enter, ImGuiKey_KeypadEnter, ImGuiKey_Space }, false)) {
+            if (pendingSelect.exchange(false)) {
                 chosen = highlight;
             }
-            const bool cancel = AnyPressed({ ImGuiKey_GamepadFaceRight, ImGuiKey_Escape, ImGuiKey_Tab, ImGuiKey_Backspace }, false);
+            const bool cancel = pendingCancel.exchange(false);
 
             SetNextWindowPos(ImVec2{ g.x, g.y }, ImGuiCond_Always);
             SetNextWindowSize(ImVec2{ g.w, g.h }, ImGuiCond_Always);
@@ -280,7 +373,7 @@ namespace WMS::MapPanel
                 Separator();
 
                 // The list fills the panel between the title and the hint line, and scrolls (wheel, or following the highlight).
-                const float footer = GetFrameHeightWithSpacing() + GetTextLineHeightWithSpacing();
+                const float footer = GetFrameHeightWithSpacing() + 2.0f * GetTextLineHeightWithSpacing();
                 if (BeginChild("##WMSFCMapRows", ImVec2{ 0.0f, -footer }, 0, ImGuiWindowFlags_NoNav)) {
                     SetWindowFontScale(static_cast<float>(Config::GetPanelTextScalePercent()) / 100.0f);
                     const auto* io = GetIO();
@@ -306,10 +399,12 @@ namespace WMS::MapPanel
                 EndChild();
 
                 Separator();
-                static GetInputModeFn getInputMode = GetMenuFrameworkFunction<GetInputModeFn>("AMF_GetInputMode");
-                const bool pad = getInputMode && getInputMode() == 1u;
-                TextDisabled("%s", pad ? TR("WMSFC_PanelHintPad", "D-pad: move   A: select   B: close").c_str()
-                                       : TR("WMSFC_PanelHintKeys", "Arrows or wheel: move   Enter or click: select   Esc: close").c_str());
+                // The hint follows the device last used on the panel (or the one that opened it), wrapped to the panel's width.
+                const auto* style = GetStyle();
+                if (style) PushStyleColor(ImGuiCol_Text, style->Colors[ImGuiCol_TextDisabled]);
+                TextWrapped("%s", lastDeviceGamepad ? TR("WMSFC_PanelHintPad", "D-pad: move   A: select   B: close").c_str()
+                                                    : TR("WMSFC_PanelHintKeys", "Arrows or wheel: move   Enter or click: select   Esc: close").c_str());
+                if (style) PopStyleColor(1);
             }
             End();
 
@@ -347,6 +442,9 @@ namespace WMS::MapPanel
         }
         // BlockUserInput: while open, the framework takes the controller, keyboard and mouse from the game (the map stays still).
         window = SKSEMenuFramework::AddWindow(Render, true);
+        // The panel's keys and buttons (see OnInputEvent). Kept for the life of the process.
+        static auto* inputEvent = SKSEMenuFramework::AddInputEvent(OnInputEvent);
+        (void)inputEvent;
         if (!window) {
             SKSE::log::warn("The menu framework refused the map list panel window; the message-box chooser is used.");
             return false;
@@ -381,6 +479,11 @@ namespace WMS::MapPanel
             rows = std::move(built);
             openHighlight = initial;
         }
+        pendingNavigate = 0;
+        pendingSelect = false;
+        pendingCancel = false;
+        heldButtons = 0;
+        lastDeviceGamepad = MapChooserInput::LastInputWasGamepad();
         ++opens;
         state = static_cast<int>(State::kOpen);
         window->IsOpen = true;

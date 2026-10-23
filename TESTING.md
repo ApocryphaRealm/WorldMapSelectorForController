@@ -7,7 +7,7 @@ free and no SkyrimSE / ModOrganizer process runs.
 ## Build under test
 
 - Package: `D:\Claude output\7. current test builds\Skyrim - World Map Selector for Controller\World Map Selector for Controller 1.0.0`
-- Packaged DLL sha256 starts `5A16D3FC`; check the installed DLL's hash matches before judging.
+- Packaged DLL sha256 starts `16C4E49F`; check the installed DLL's hash matches before judging.
 - Needs the Apocrypha Menu Framework enabled (the profile's "Apocrypha Menu Framework" mod, 2.2.x or newer). Without it
   the plugin falls back to the old message box - that is a fallback, not this test.
 
@@ -63,3 +63,15 @@ message box showed. Dayspring Canyon (DLC1HunterHQWorld), Forgotten Vale (DLC01F
 Sovngarde, Skuldafn, the city worlds and the other caves use their parent's map (Skyrim's; Apocrypha uses
 Solstheim's, Boneyard Soul Cairn's, Dimfrost Wyrmstooth's), so they have no map of their own to select - choosing
 them would show the same map as the parent.
+
+## Result, 2026-10-23 (WMS Panel Agent) - recorded working
+
+Two runs on Njordlinger Test. Run 1 (build 5A16D3FC): items 0-7 and the 30-test-row scroll (scrollY 0 -> 330 =
+scrollMaxY, highlight kept in view) passed; one defect found - the first controller press after keyboard or mouse use
+was lost, because the panel read its buttons from ImGui and the framework spends that press switching its input mode.
+Fixed by reading the panel's keys and buttons through the framework's input callback (RegisterInpoutEvent), which
+sees every event first; the footer hint also wraps now and follows the device used. Run 2 (build 16C4E49F, the
+packaged one): Side=Left persisted across the restart; pad open, D-pad and stick one row per press, A chose Soul
+Cairn (map switched), B closed on the first press after keyboard use, Esc closed, C opened, a mouse click on
+[Clear Selection] cleared, Restore defaults wrote Side=Right. Screenshots and logs: `build/test-evidence-1.0.0-panel/`.
+Not exercised: the width / text-size sliders' one-unit nudge (shared precise::SliderInt wrapper).
