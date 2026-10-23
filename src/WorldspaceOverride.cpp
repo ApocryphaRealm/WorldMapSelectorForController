@@ -90,6 +90,14 @@ namespace WMS::WorldspaceOverride
         return selectedMapWorldspace.load(std::memory_order_acquire);
     }
 
+    RE::TESWorldSpace* GetShownMapWorldspace()
+    {
+        if (auto* redirected = GetSelectedMapWorldspace()) {
+            return redirected;
+        }
+        return GetActualMapWorldspace();
+    }
+
     void BeginSession()
     {
         // The constructor's resolver call established selectedMapWorldspace

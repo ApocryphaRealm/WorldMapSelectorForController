@@ -7,6 +7,7 @@ namespace WMS::MapChooser
     bool Dismiss();
     // True while the chooser's message box is showing.
     bool IsActive();
-    // The worldspace whose map is showing (or would show): the override's actual map, else the player's world.
+    // The player's own worldspace (vanilla's map answer, before any redirect) - the [Here] map. It is NOT always the map
+    // on screen: while another map is shown, WorldspaceOverride::GetShownMapWorldspace() is that one.
     RE::TESWorldSpace* CurrentWorldspace();
 }

@@ -7,7 +7,7 @@ free and no SkyrimSE / ModOrganizer process runs.
 ## Build under test
 
 - Package: `D:\Claude output\7. current test builds\Skyrim - World Map Selector for Controller\World Map Selector for Controller 1.0.0`
-- Packaged DLL sha256 starts `16C4E49F`; check the installed DLL's hash matches before judging.
+- Packaged DLL sha256 starts `53D8F422` (the 2026-10-23 every-switch-immediate rebuild); check the installed DLL's hash matches before judging.
 - Needs the Apocrypha Menu Framework enabled (the profile's "Apocrypha Menu Framework" mod, 2.2.x or newer). Without it
   the plugin falls back to the old message box - that is a fallback, not this test.
 
@@ -32,7 +32,7 @@ free and no SkyrimSE / ModOrganizer process runs.
 | 2 | D-pad down / left stick down several times | highlight moves one row per press; map does not move |
 | 3 | `wmsfc.control {"op":"fake","count":30}`, B to close, D-pad up to reopen | 36+ rows; press down past the bottom - the list scrolls to keep the highlight in view (`panel.scrollY` grows, `scrollMaxY` > 0) |
 | 4 | Highlight Solstheim, press A | panel closes; map closes and reopens on Solstheim; HUD "World map selected: Solstheim" |
-| 5 | Reopen, highlight `[Clear Selection]`, A | HUD "World map selection cleared."; the map stays open; next map open shows the world you are in |
+| 5 | Reopen, highlight `[Clear Selection]`, A | HUD "World map selection cleared."; the map closes and reopens on the world you are in at once (corrected 2026-10-23 - see 18-23) |
 | 6 | Reopen, press B | panel closes, the map stays open, and nothing else happens on the map (no menu backs out) |
 | 7 | AMF menu -> World Map Selector for Controller -> Settings: Side = Left | close AMF, open the panel: it runs down the LEFT side. The log shows `Saved settings: Side=Left, ...`; the mod folder's INI has `[Panel] Side=Left` |
 | 8 | Width and Text size sliders: D-pad left/right | one unit (1%) per nudge (rule 68); the panel follows live |
@@ -55,6 +55,23 @@ with its "World Map Selector for Controller" option (auto-ticked when the WMS DL
 | 15 | Close the map, D-pad up in gameplay | the horse IS called (Simplest Horses works as before); WMS log `pressed outside MapMenu; passed on to the game` |
 | 16 | B, Esc, A, Enter and D-pad down while the panel is open | none of them reaches another mod or the map (the map does not back out on B; nothing bound to those buttons by another mod fires) |
 | 17 | Untick the option / delete `WorldMapSelectorForController_PanelStyle.ini`, restart | log `No panel style file`; the panel looks as 1.0.0 (theme colours and frame) |
+
+### Added 2026-10-23 (same 1.0.0): every switch is immediate, in one map visit
+
+The owner (batch 3): the first switch worked, but going back to the previous map or another one needed the map closed
+and reopened. Cause: the panel judged "already showing" against the world the player is in, not the map on screen (live
+log 05:35:28 `chose Skyrim, the map already showing` while the map showed Tamriel/BSHeartland). Do 18-23 in ONE world
+map visit, never closing the map yourself, standing in Skyrim (A = Skyrim, B = Solstheim, C = Shivering Isles or any
+third map). Screenshot after each switch.
+
+| # | Action | Expect |
+|---|---|---|
+| 18 | Open the map, D-pad up | panel highlight on `Skyrim [Here]` (or `[Here/Selected]`) |
+| 19 | Choose Solstheim (A -> B) | map closes and reopens on Solstheim at once; log `Map list panel selected Solstheim`, `closing MapMenu before reopening it`, `MapMenu worldspace: name="Solstheim"` |
+| 20 | D-pad up, choose Skyrim (B -> A) | the panel opened with the highlight on `Solstheim [Selected]`; the map reopens on Skyrim at once; log `Map list panel selected Skyrim (0000003C)`, `closing MapMenu before reopening it`, `Map selection: Default (requested map 0000003C is current)`, `MapMenu worldspace: name="Skyrim"`; NO `the map already showing` line |
+| 21 | D-pad up, choose Shivering Isles (A -> C) | highlight was on `Skyrim [Here/Selected]`; the map reopens on Shivering Isles at once; `MapMenu worldspace: name="Shivering Isles"` |
+| 22 | D-pad up, `[Clear Selection]`, A | highlight was on `Shivering Isles [Selected]`; HUD "World map selection cleared."; the map reopens on Skyrim at once; log `cleared the map selection; switching back to the player's map`, `Map selection: Default.`, `MapMenu worldspace: name="Skyrim"` |
+| 23 | D-pad up, choose Skyrim again (already showing) | the panel highlight is on `Skyrim [Here]`; log `chose Skyrim, the map already showing`; the map does NOT close and reopen |
 
 Driving without hands: TestBench `POST /api/tool/wmsfc.control` - `{}` state (the `panel` object: open, rows,
 highlight, scrollY, scrollMaxY, rect, side, widthPercent, textScalePercent), `{"op":"open"}`, `{"op":"dismiss"}`,

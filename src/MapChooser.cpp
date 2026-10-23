@@ -106,8 +106,15 @@ namespace WMS::MapChooser
                 case ActionType::kClearSelection:
                     MapSelection::SelectDefault();
                     RE::SendHUDMessage::ShowHUDMessage(TR("WMSFC_SelectionCleared", "World map selection cleared.").c_str());
-                    SKSE::log::info("Map chooser cleared the map selection.");
-                    MapSwitchFlow::Cancel();
+                    if (WorldspaceOverride::GetSelectedMapWorldspace()) {
+                        // Another map is on screen: the switch flow set when the chooser opened in the map takes it back
+                        // to the player's own map now.
+                        SKSE::log::info("Map chooser cleared the map selection; switching back to the player's map.");
+                        MapSwitchFlow::ApplyAfterChoice();
+                    } else {
+                        SKSE::log::info("Map chooser cleared the map selection.");
+                        MapSwitchFlow::Cancel();
+                    }
                     break;
 
                 case ActionType::kSelectMap:

@@ -16,6 +16,7 @@
 #include "PanelStyle.h"
 #include "Strings.h"
 #include "WorldspaceCatalog.h"
+#include "WorldspaceOverride.h"
 
 namespace WMS::MapPanel
 {
@@ -91,7 +92,10 @@ namespace WMS::MapPanel
         // name) with [Clear Selection] on top, as the message-box chooser lists them.
         std::vector<Row> BuildRows(int& initialHighlight)
         {
+            // [Here] is the player's own world; isCurrent is the map MapMenu is drawing now, which differs while another
+            // map is shown. Taking one for the other made choosing the player's map from another map a no-op (2026-10-23).
             auto* currentMap  = WorldspaceCatalog::GetMapOwner(MapChooser::CurrentWorldspace());
+            auto* shownMap    = WorldspaceCatalog::GetMapOwner(WorldspaceOverride::GetShownMapWorldspace());
             auto* selectedMap = WorldspaceCatalog::GetMapOwner(MapSelection::GetSelectedWorldspace());
             const auto options = WorldspaceCatalog::GetOrderedOptions(currentMap, selectedMap);
 
@@ -116,7 +120,7 @@ namespace WMS::MapPanel
                 if (isSelected) selectedRow = static_cast<int>(built.size());
                 if (isHere && initialHighlight < 0) initialHighlight = static_cast<int>(built.size());
                 built.push_back({ .type = RowType::kMap, .worldspace = option.worldspace, .label = std::move(label),
-                                  .displayName = option.displayName, .isCurrent = isHere });
+                                  .displayName = option.displayName, .isCurrent = option.worldspace == shownMap });
             }
 
             if (selectedRow >= 0) initialHighlight = selectedRow;
@@ -138,8 +142,15 @@ namespace WMS::MapPanel
                 case RowType::kClearSelection:
                     MapSelection::SelectDefault();
                     RE::SendHUDMessage::ShowHUDMessage(TR("WMSFC_SelectionCleared", "World map selection cleared.").c_str());
-                    SKSE::log::info("Map list panel cleared the map selection.");
-                    MapSwitchFlow::Cancel();
+                    if (WorldspaceOverride::GetSelectedMapWorldspace()) {
+                        // Another map is on screen: go back to the player's own map now, as any other choice does.
+                        SKSE::log::info("Map list panel cleared the map selection; switching back to the player's map.");
+                        MapSwitchFlow::ConfigureInsideMap();
+                        MapSwitchFlow::ApplyAfterChoice();
+                    } else {
+                        SKSE::log::info("Map list panel cleared the map selection.");
+                        MapSwitchFlow::Cancel();
+                    }
                     break;
                 case RowType::kMap: {
                     if (row.isCurrent) {

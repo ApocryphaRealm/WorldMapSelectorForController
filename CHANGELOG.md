@@ -21,6 +21,9 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 - SkyUI's button bar on the world map shows the chooser's button while a controller is in use and its key otherwise.
 - The map chooser opens from inside the world map with one button: D-pad up on a controller, C on the keyboard (MapMenuButton / MapMenuKey in [Controls]). Outside the world map both do nothing.
 
+### Fixed
+- Every choice in the world map now switches the map at once, however many times it is used in one visit: going back to the map of the world you are in while another map is shown, and [Clear Selection] while another map is shown, now close and reopen the map on your own world straight away, instead of only taking effect the next time the map was opened. The panel had taken the world you are in for the map on screen, so it treated that choice as "already showing" and did nothing. The message-box chooser's [Clear Selection] does the same.
+
 ### Changed
 - The message-box chooser (Select World Map (1/N), paged left and right) is now the fallback for players without the Apocrypha Menu Framework; MapsPerPage and ShowCancelButton apply to it only. Which worldspaces are offered is unchanged from World Map Selector 1.4.0: every worldspace with map data of its own.
 - Installs as WorldMapSelectorForController.dll with its own WorldMapSelectorForController.ini. If the original WorldMapSelector.dll is also installed, this plugin logs an error and stays inactive rather than hooking the same game code twice.
