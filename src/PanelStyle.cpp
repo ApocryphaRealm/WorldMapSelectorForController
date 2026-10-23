@@ -151,7 +151,7 @@ namespace WMS::PanelStyle
         constexpr const char* required[] = {
             "igPushStyleColor_Vec4", "igPopStyleColor", "igPushStyleVar_Float", "igPopStyleVar", "igGetWindowDrawList",
             "igGetCursorScreenPos", "igGetContentRegionAvail", "igGetTextLineHeight", "igColorConvertFloat4ToU32", "ImDrawList_AddRectFilled",
-            "ImDrawList_AddRectFilledMultiColor"
+            "ImDrawList_AddRectFilledMultiColor", "igDummy"
         };
         for (const char* exportName : required) {
             if (!GetMenuFrameworkFunction<void*>(exportName)) {
@@ -251,6 +251,22 @@ namespace WMS::PanelStyle
             FadedLine(list, x0, x1, y0, style.lineThickness, style.line, 1.0f);
             FadedLine(list, x0, x1, y1 - style.lineThickness, style.lineThickness, style.line, 1.0f);
         }
+        return true;
+    }
+
+    bool DrawSeparator()
+    {
+        // ImGui's Separator goes through the menu framework's art hook, which draws the theme's own section rule (a
+        // dotted strip under the Skyrim theme) tinted with the separator colour - not the style's line. So the style
+        // draws its line itself, at the cursor, as wide as the content, and takes the same height Separator would.
+        if (!style.active || !exportsOk || !style.line.set) return false;
+        using namespace ImGuiMCP;
+        const ImVec2 at = GetCursorScreenPos();
+        const ImVec2 room = GetContentRegionAvail();
+        auto* list = GetWindowDrawList();
+        if (!list || room.x <= 0.0f) return false;
+        FadedLine(list, at.x, at.x + room.x, at.y, style.lineThickness, style.line, 1.0f);
+        Dummy(ImVec2{ 0.0f, style.lineThickness });
         return true;
     }
 

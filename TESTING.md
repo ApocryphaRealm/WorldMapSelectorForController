@@ -55,6 +55,9 @@ with its "World Map Selector for Controller" option (auto-ticked when the WMS DL
 | 15 | Close the map, D-pad up in gameplay | the horse IS called (Simplest Horses works as before); WMS log `pressed outside MapMenu; passed on to the game` |
 | 16 | B, Esc, A, Enter and D-pad down while the panel is open | none of them reaches another mod or the map (the map does not back out on B; nothing bound to those buttons by another mod fires) |
 | 17 | Untick the option / delete `WorldMapSelectorForController_PanelStyle.ini`, restart | log `No panel style file`; the panel looks as 1.0.0 (theme colours and frame) |
+| 17a | (2026-10-23, after batch 3) With the style on, look at the two separators (under "World Maps", above the hint) | each is ONE solid slate (#5B676D) line, 1 px, fading out at both ends - NOT the theme's dotted rule with end dots. Batch 3 (build 9AAE5C21) showed the dotted rule: AMF draws ImGui's Separator as its theme's section art, so the style now draws its own line |
+| 17b | Same frame: the panel's top and bottom edges | a slate (#5B676D) line along each, solid in the middle and fading at both ends, no knotwork frame. Judge it from an in-process capture (`amf.process op=capture`) or a pixel read: batch 3's desktop grab was about 2.1x too bright (slate read as 193,219,231), so a thin slate line on the bright map looked absent. It was present (rows 16 and 879 of the batch-3 crop) |
+| 17c | Same frame: the footer hint | dim grey (#999999), visibly darker than the white rows. In the 2.1x-bright desktop grab both clip to white; compare in an in-process capture (or by pixel: rows white 255,255,255; hint 153,153,153) |
 
 ### Added 2026-10-23 (same 1.0.0): every switch is immediate, in one map visit
 

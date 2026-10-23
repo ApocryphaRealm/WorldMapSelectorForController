@@ -34,6 +34,11 @@ namespace WMS::PanelStyle
     // style draws its own edge, so the framework theme's frame is not drawn.
     bool DrawPanelEdge(void* drawList, float x0, float y0, float x1, float y1);
 
+    // Render thread, inside the panel's window: the style's separator line (sLine, fading at both ends) in place of
+    // ImGui's Separator, which the framework draws as its theme's section rule. False when the style gives no line (call
+    // Separator then).
+    bool DrawSeparator();
+
     // The exports the style draws with; checked once when a style file is active.
     bool HasRequiredExports();
 

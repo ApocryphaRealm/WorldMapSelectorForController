@@ -456,7 +456,7 @@ namespace WMS::MapPanel
                 const bool titlePushed = PanelStyle::PushRowText(true);
                 Text("%s", TR("WMSFC_PanelTitle", "World Maps").c_str());
                 PanelStyle::PopRowText(titlePushed);
-                Separator();
+                if (!PanelStyle::DrawSeparator()) Separator();
 
                 // The list fills the panel between the title and the hint line, and scrolls (wheel, or following the highlight).
                 const float footer = GetFrameHeightWithSpacing() + 2.0f * GetTextLineHeightWithSpacing();
@@ -495,7 +495,7 @@ namespace WMS::MapPanel
                 }
                 EndChild();
 
-                Separator();
+                if (!PanelStyle::DrawSeparator()) Separator();
                 // The hint follows the device last used on the panel (or the one that opened it), wrapped to the panel's width.
                 const auto* style = GetStyle();
                 if (style) PushStyleColor(ImGuiCol_Text, style->Colors[ImGuiCol_TextDisabled]);
