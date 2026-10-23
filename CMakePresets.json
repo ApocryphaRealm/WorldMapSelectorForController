@@ -36,18 +36,33 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "x64-RelWithDebInfo",
+      "displayName": "x64 RelWithDebInfo (the shipped build: optimized, with its PDB)",
+      "inherits": "windows-x64-base",
+      "binaryDir": "${sourceDir}/build/relwithdebinfo",
+      "installDir": "${sourceDir}/build/install",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
     }
   ],
   "buildPresets": [
     {
       "name": "x64-Debug",
       "configurePreset": "x64-Debug",
-      "targets": [ "WorldMapSelector" ]
+      "targets": [ "WorldMapSelectorForController" ]
     },
     {
       "name": "x64-Release",
       "configurePreset": "x64-Release",
-      "targets": [ "WorldMapSelector" ]
+      "targets": [ "WorldMapSelectorForController" ]
+    },
+    {
+      "name": "x64-RelWithDebInfo",
+      "configurePreset": "x64-RelWithDebInfo",
+      "targets": [ "WorldMapSelectorForController" ]
     },
     {
       "name": "x64-Release-Package",

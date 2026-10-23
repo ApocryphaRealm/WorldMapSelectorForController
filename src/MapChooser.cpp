@@ -3,6 +3,7 @@
 #include "MapChooser.h"
 #include "MapSelection.h"
 #include "MapSwitchFlow.h"
+#include "Strings.h"
 #include "WorldspaceCatalog.h"
 #include "WorldspaceOverride.h"
 
@@ -10,6 +11,19 @@ namespace WMS::MapChooser
 {
     namespace
     {
+        // Formats translated text. A translation whose placeholders do not fit the arguments
+        // falls back to the compiled English pattern rather than throwing out of a menu callback.
+        template <class... Args>
+        std::string FormatText(const std::string& translated, std::string_view english, Args&&... args)
+        {
+            try {
+                return fmt::format(fmt::runtime(translated), args...);
+            } catch (const fmt::format_error& error) {
+                SKSE::log::warn("Translated text \"{}\" did not format ({}); using English.", translated, error.what());
+                return fmt::format(fmt::runtime(english), args...);
+            }
+        }
+
         // enum class creates named values without leaking kSelectMap, etc.
         // into the surrounding namespace or allowing accidental integer conversion.
         enum class ActionType
@@ -68,11 +82,11 @@ namespace WMS::MapChooser
             const bool isSelected = option.worldspace == selectedMap;
 
             if (isHere && isSelected) {
-                label += " [Here/Selected]";
+                label += " " + TR("WMSFC_TagHereSelected", "[Here/Selected]");
             } else if (isHere) {
-                label += " [Here]";
+                label += " " + TR("WMSFC_TagHere", "[Here]");
             } else if (isSelected) {
-                label += " [Selected]";
+                label += " " + TR("WMSFC_TagSelected", "[Selected]");
             }
 
             return label;
@@ -91,14 +105,14 @@ namespace WMS::MapChooser
             switch (action.type) {
                 case ActionType::kClearSelection:
                     MapSelection::SelectDefault();
-                    RE::SendHUDMessage::ShowHUDMessage("World map selection cleared.");
+                    RE::SendHUDMessage::ShowHUDMessage(TR("WMSFC_SelectionCleared", "World map selection cleared.").c_str());
                     SKSE::log::info("Map chooser cleared the map selection.");
                     MapSwitchFlow::Cancel();
                     break;
 
                 case ActionType::kSelectMap:
                     MapSelection::Select(action.worldspace);
-                    RE::SendHUDMessage::ShowHUDMessage(fmt::format("World map selected: {}", action.displayName).c_str());
+                    RE::SendHUDMessage::ShowHUDMessage(FormatText(TR("WMSFC_MapSelected", "World map selected: {}"), "World map selected: {}", action.displayName).c_str());
                     SKSE::log::info("Map chooser selected {} ({:08X}).",
                         action.displayName, action.worldspace ? action.worldspace->GetFormID() : 0
                     );
@@ -147,7 +161,7 @@ namespace WMS::MapChooser
             const auto options = WorldspaceCatalog::GetOrderedOptions(currentMap, selectedMap);
             if (options.empty()) {
                 MapSwitchFlow::Cancel();
-                RE::SendHUDMessage::ShowHUDMessage("WorldMapSelector found no selectable maps.");
+                RE::SendHUDMessage::ShowHUDMessage(TR("WMSFC_NoMaps", "World Map Selector for Controller found no selectable maps.").c_str());
                 return;
             }
 
@@ -170,7 +184,7 @@ namespace WMS::MapChooser
             std::vector<Action> actions;
 
             if (page == 0 && Config::GetShowClearSelectionButton()) {
-                buttons.emplace_back("[Clear Selection]");
+                buttons.emplace_back(TR("WMSFC_ClearSelection", "[Clear Selection]"));
                 // Designated initializers make clear which Action fields this particular button requires;
                 // omitted fields keep defaults.
                 actions.push_back({
@@ -180,7 +194,7 @@ namespace WMS::MapChooser
 
             if (page > 0) {
 				// The characters &lt; and &gt; are HTML-escaped to avoid confusing the message-box parser.
-                buttons.emplace_back("&lt;&lt; Previous");
+                buttons.emplace_back("&lt;&lt; " + TR("WMSFC_Previous", "Previous"));
                 actions.push_back({
                     .type = ActionType::kPreviousPage,
                     .page = page - 1
@@ -201,7 +215,7 @@ namespace WMS::MapChooser
 
             if (page + 1 < pageCount) {
                 // The characters &lt; and &gt; are HTML-escaped to avoid confusing the message-box parser.
-                buttons.emplace_back("Next &gt;&gt;");
+                buttons.emplace_back(TR("WMSFC_Next", "Next") + " &gt;&gt;");
                 actions.push_back({
                     .type = ActionType::kNextPage,
                     .page = page + 1
@@ -209,13 +223,13 @@ namespace WMS::MapChooser
             }
 
             if (Config::GetShowCancelButton()) {
-                buttons.emplace_back("Cancel");
+                buttons.emplace_back(TR("WMSFC_Cancel", "Cancel"));
                 actions.push_back({
                     .type = ActionType::kCancel
                 });
             }
 
-            const auto message = fmt::format("Select World Map ({}/{})", page + 1, pageCount);
+            const auto message = FormatText(TR("WMSFC_ChooserTitle", "Select World Map ({}/{})"), "Select World Map ({}/{})", page + 1, pageCount);
 
             {
                 std::scoped_lock lock(actionsLock);
@@ -256,28 +270,13 @@ namespace WMS::MapChooser
                 return;
             }
 
-            if (ui->IsMenuOpen(RE::MapMenu::MENU_NAME)) {
-                if (!Config::GetAllowChooserWhileMapOpen()) {
-                    SKSE::log::debug("Ignored map chooser request while MapMenu is open; AllowChooserWhileMapOpen is false.");
-                } else {
-                    MapSwitchFlow::ConfigureInsideMap();
-                    ShowPage(0);
-                }
+            // The chooser belongs to the world map: outside MapMenu a request does nothing.
+            if (!ui->IsMenuOpen(RE::MapMenu::MENU_NAME)) {
+                SKSE::log::debug("Ignored map chooser request because MapMenu is not open.");
                 return;
             }
 
-            if (!Config::GetAllowChooserOutsideMap()) {
-                SKSE::log::debug("Ignored map chooser request outside MapMenu; AllowChooserOutsideMap is false.");
-                return;
-            }
-
-            if (ui->GameIsPaused() || ui->IsModalMenuOpen()) {
-                SKSE::log::trace("Ignored map chooser request while another paused or modal menu is active.");
-                return;
-            }
-
-            // Choose whether a selection made outside MapMenu should open it.
-            MapSwitchFlow::ConfigureOutsideMap(Config::GetOpenMapAfterSelection());
+            MapSwitchFlow::ConfigureInsideMap();
             ShowPage(0);
         }
 
@@ -307,5 +306,11 @@ namespace WMS::MapChooser
         SKSE::log::debug("Dismissed the map chooser without selecting an action.");
         MapSwitchFlow::Cancel();
         return true;
+    }
+
+    bool IsActive()
+    {
+        std::scoped_lock lock(actionsLock);
+        return chooserActive;
     }
 }

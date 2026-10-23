@@ -14,7 +14,13 @@ namespace WMS::MapMarkerOverride
         // Skyrim's native function to collect map marker handles from a worldspace.
 		// Takes the worldspace to collect from, a pointer to the destination array, and a boolean to include hidden markers.
         using CollectMapMarkerHandles_t = void (*)(RE::TESWorldSpace*, RE::BSTArray<RE::ObjectRefHandle>*, bool);
-        static REL::Relocation<CollectMapMarkerHandles_t> collectMapMarkerHandles{ REL::RelocationID(20089, 20536) };
+        // Resolved on first use (inside a function), never at static init, so the Address Library is opened only after
+        // SKSEPluginLoad's checks have passed (gate row no-address-resolved-at-static-init).
+        void CollectMapMarkerHandles(RE::TESWorldSpace* worldspace, RE::BSTArray<RE::ObjectRefHandle>* handles, bool includeHidden)
+        {
+            static REL::Relocation<CollectMapMarkerHandles_t> function{ REL::RelocationID(20089, 20536) };
+            function(worldspace, handles, includeHidden);
+        }
 
 		// Skyrim's native function to add the player's current location marker to the map.
 		// It takes a pointer to the destination array and a pointer to the player's marker position.
@@ -65,7 +71,7 @@ namespace WMS::MapMarkerOverride
 
 			// Collect all map marker handles from the selected worldspace.
 			selectedMapMarkerHandles.clear();
-            collectMapMarkerHandles(selectedWorldspace, std::addressof(selectedMapMarkerHandles), false);
+            CollectMapMarkerHandles(selectedWorldspace, std::addressof(selectedMapMarkerHandles), false);
 
             // Append the selected handles through this runtime's original ordinary-marker pipeline.
             const auto markersAdded = AppendSelectedMapMarkers(mapMarkers);

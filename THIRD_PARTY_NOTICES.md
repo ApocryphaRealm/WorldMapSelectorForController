@@ -27,6 +27,7 @@ other third-party projects used to build or run WorldMapSelector.
 | [JSON for Modern C++](https://github.com/nlohmann/json) | MIT | Copyright (c) 2013-2025 Niels Lohmann. |
 | [DirectXMath](https://github.com/microsoft/DirectXMath) | MIT | Copyright (c) Microsoft Corporation. |
 | [DirectX Tool Kit](https://github.com/microsoft/DirectXTK) | MIT | Copyright (c) Microsoft Corporation. |
+| [devbench](https://github.com/alandtse/devbench) consumer API (`src/DevBench/DevBenchAPI.h`, `.cpp`) | MIT (separate from devbench's own GPL-3.0) | Copyright (c) 2026 Alan Tse and devbench contributors. Notice: `src/DevBench/DevBenchAPI.LICENSE.txt`. |
 
 The exact dependency revisions used by a build are pinned by `vcpkg.json`, its
 builtin baseline, and the CommonLibSSE NG Git submodule commit.
@@ -46,7 +47,7 @@ binary redistributions.
 
 For a public mod archive, consolidate those required texts into a
 WorldMapSelector-specific notice file beneath
-`SKSE/Plugins/WorldMapSelector/`. Do not place generic files such as
+`SKSE/Plugins/WorldMapSelectorForController/`. Do not place generic files such as
 `LICENSE`, `COPYING`, or `README` at the archive root: mod managers treat the
 archive as a `Data`-directory payload, and generic names can collide with files
 from unrelated mods. This repository's summary is not a replacement for the

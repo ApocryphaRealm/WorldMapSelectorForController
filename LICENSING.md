@@ -13,7 +13,7 @@ material without an attribution or source-publication requirement.
 
 ## Combined plugin binary
 
-WorldMapSelector links CommonLibSSE NG statically into `WorldMapSelector.dll`.
+WorldMapSelector links CommonLibSSE NG statically into `WorldMapSelectorForController.dll`.
 CommonLibSSE NG is licensed under GPL-3.0-or-later with its Modding Exception and
 GPL-3.0 Linking Exception (with Corresponding Source). Distribution of the combined
 DLL is therefore governed by those terms, including their corresponding-source and

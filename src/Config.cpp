@@ -9,16 +9,16 @@ namespace WMS::Config
     namespace
     {
         // Turn the game-relative INI path into the path SimpleIni reads.
-        const auto configPath = std::filesystem::absolute("Data\\SKSE\\Plugins\\WorldMapSelector.ini").string();
+        const auto configPath = std::filesystem::absolute("Data\\SKSE\\Plugins\\WorldMapSelectorForController.ini").string();
 
         // Initialize the plugin configuration settings with their default values.
         // Missing or invalid INI entries leave these values unchanged.
         auto logLevel                 = spdlog::level::info; // This default actually needs to be applied
-        std::uint32_t openSelectorKey = 0x44;
-        bool openMapAfterSelection    = true;
+        // The chooser opens only while MapMenu is open. These two defaults must match the shipped INI (rule 16)
+        // and DEFAULT-KEYS.md.
+        std::uint32_t mapMenuKey      = 0x2E;   // DirectInput scan code: C
+        std::uint32_t mapMenuButton   = 0x0001; // XInput button mask: D-pad up
         bool persistSelection         = true;
-        bool allowChooserOutsideMap   = true;
-        bool allowChooserWhileMapOpen = true;
         bool showMapMenuKeyHint           = true;
         bool showMapMenuKeyHintOnLocalMap = false;
         std::size_t mapsPerPage           = 6;
@@ -39,7 +39,7 @@ namespace WMS::Config
             return std::nullopt;
         }
 
-        std::optional<std::uint32_t> ParseKeyCode(std::string_view text)
+        std::optional<std::uint32_t> ParseKeyCode(std::string_view text, std::uint32_t maximum)
         {
             // Require the hexadecimal prefix documented in the INI,
             // then remove it from this non-owning view before parsing the remaining digits.
@@ -53,8 +53,8 @@ namespace WMS::Config
             const auto result    = std::from_chars(start, end, parsed, 16);
 
             // from_chars reports both a parsing error and where parsing stopped.
-            // Require every character to be valid hex and the result to fit in one byte.
-            if (result.ec != std::errc{} || result.ptr != end || parsed > 0xFF) {
+            // Require every character to be valid hex and the result to fit the device's code range.
+            if (result.ec != std::errc{} || result.ptr != end || parsed > maximum) {
                 return std::nullopt;
             }
 
@@ -113,15 +113,30 @@ namespace WMS::Config
             ApplyLogLevel();
         }
 
-        void ReadSelectorKey(const CSimpleIniA& ini)
+        // Reads one [Controls] code. 0 turns that device's trigger off. A missing or invalid value keeps the default.
+        void ReadControlCode(const CSimpleIniA& ini, const char* key, std::uint32_t maximum, std::uint32_t& setting)
         {
-            if (const char* configured = ini.GetValue("Controls", "OpenSelectorKey")) {
-                if (const auto parsed = ParseKeyCode(configured)) {
-                    openSelectorKey = *parsed;
+            if (const char* configured = ini.GetValue("Controls", key)) {
+                if (const auto parsed = ParseKeyCode(configured, maximum)) {
+                    setting = *parsed;
+                    SKSE::log::debug("{} read as 0x{:X}.", key, setting);
                 }
-                else { SKSE::log::warn("Invalid OpenSelectorKey \"{}\"; keeping default 0x44 (F10).", configured); }
+                else { SKSE::log::warn("Invalid {} \"{}\"; keeping default 0x{:X}.", key, configured, setting); }
             }
-            else { SKSE::log::debug("OpenSelectorKey not specified; keeping default 0x44 (F10)."); }
+            else { SKSE::log::debug("{} not specified; keeping default 0x{:X}.", key, setting); }
+        }
+
+        // Keys the original World Map Selector read. They do nothing here; say so once so a copied INI is no mystery.
+        void WarnRetiredKeys(const CSimpleIniA& ini)
+        {
+            if (ini.GetValue("Controls", "OpenSelectorKey")) {
+                SKSE::log::warn("OpenSelectorKey is not used; the chooser opens from the world map with MapMenuKey / MapMenuButton.");
+            }
+            for (const char* key : { "OpenMapAfterSelection", "AllowChooserOutsideMap", "AllowChooserWhileMapOpen" }) {
+                if (ini.GetValue("Behavior", key)) {
+                    SKSE::log::warn("{} is not used; the chooser opens only while the world map is open.", key);
+                }
+            }
         }
 
         void ReadBool(const CSimpleIniA& ini, const char* key, bool& setting)
@@ -183,10 +198,9 @@ namespace WMS::Config
 
 		// Read each setting from the INI file, leaving the default value unchanged if the key is missing or invalid.
         ReadLogLevel(ini);
-		ReadSelectorKey(ini);
-        ReadBool(ini, "OpenMapAfterSelection", openMapAfterSelection);
-        ReadBool(ini, "AllowChooserOutsideMap", allowChooserOutsideMap);
-        ReadBool(ini, "AllowChooserWhileMapOpen", allowChooserWhileMapOpen);
+        ReadControlCode(ini, "MapMenuKey", 0xFF, mapMenuKey);
+        ReadControlCode(ini, "MapMenuButton", 0xFFFF, mapMenuButton);
+        WarnRetiredKeys(ini);
         ReadBool(ini, "ShowMapMenuKeyHint", showMapMenuKeyHint);
         ReadBool(ini, "ShowMapMenuKeyHintOnLocalMap", showMapMenuKeyHintOnLocalMap);
         ReadMapsPerPage(ini);
@@ -197,19 +211,47 @@ namespace WMS::Config
         ReadWorldspaceList(ini, "ExcludedWorldspaces", excludedWorldspaces);
 
         SKSE::log::info(
-            "Loaded configuration: LogLevel={}, OpenSelectorKey=0x{:02X}, OpenMapAfterSelection={}, AllowChooserOutsideMap={}, AllowChooserWhileMapOpen={}, ShowMapMenuKeyHint={}, ShowMapMenuKeyHintOnLocalMap={}, MapsPerPage={}, ShowCancelButton={}, ShowClearSelectionButton={}, PersistSelection={}, IncludedWorldspaces={}, ExcludedWorldspaces={}.",
-            spdlog::level::to_string_view(logLevel), openSelectorKey, openMapAfterSelection, allowChooserOutsideMap, allowChooserWhileMapOpen, showMapMenuKeyHint, showMapMenuKeyHintOnLocalMap, mapsPerPage, showCancelButton, showClearSelectionButton, persistSelection,
+            "Loaded configuration: LogLevel={}, MapMenuKey=0x{:02X}, MapMenuButton=0x{:04X}, ShowMapMenuKeyHint={}, ShowMapMenuKeyHintOnLocalMap={}, MapsPerPage={}, ShowCancelButton={}, ShowClearSelectionButton={}, PersistSelection={}, IncludedWorldspaces={}, ExcludedWorldspaces={}.",
+            spdlog::level::to_string_view(logLevel), mapMenuKey, mapMenuButton, showMapMenuKeyHint, showMapMenuKeyHintOnLocalMap, mapsPerPage, showCancelButton, showClearSelectionButton, persistSelection,
             includedWorldspaces.empty() ? "<all>" : fmt::format("{} entr{}", includedWorldspaces.size(), includedWorldspaces.size() == 1 ? "y" : "ies"),
             excludedWorldspaces.empty() ? "<none>" : fmt::format("{} entr{}", excludedWorldspaces.size(), excludedWorldspaces.size() == 1 ? "y" : "ies")
         );
     }
 
+    // Rule 28: a keyboard default or INI value on a key the Apocrypha Menu Framework reserves is left unbound,
+    // with a warning. Asked of the framework itself (SMF_GetReservedKeyCodes), so it follows the framework's live key.
+    void ApplyFrameworkReservedKeys()
+    {
+        REX::W32::HMODULE framework = nullptr;
+        for (const wchar_t* name : { L"!ApocryphaMenuFramework", L"ApocryphaMenuFramework", L"SKSEMenuFramework" }) {
+            if ((framework = REX::W32::GetModuleHandleW(name))) break;
+        }
+        if (!framework) {
+            SKSE::log::debug("No menu framework loaded; no reserved keys to avoid.");
+            return;
+        }
+
+        using func_t = std::uint32_t (*)(std::int32_t*, std::uint32_t);
+        const auto func = reinterpret_cast<func_t>(REX::W32::GetProcAddress(framework, "SMF_GetReservedKeyCodes"));
+        if (!func) {
+            SKSE::log::debug("The menu framework does not export SMF_GetReservedKeyCodes; no reserved keys to avoid.");
+            return;
+        }
+
+        std::vector<std::int32_t> reserved(func(nullptr, 0));
+        if (!reserved.empty()) reserved.resize(func(reserved.data(), static_cast<std::uint32_t>(reserved.size())));
+        SKSE::log::debug("The menu framework reserves {} key(s).", reserved.size());
+
+        if (mapMenuKey != 0 && std::ranges::find(reserved, static_cast<std::int32_t>(mapMenuKey)) != reserved.end()) {
+            SKSE::log::warn("MapMenuKey 0x{:02X} is reserved by the menu framework; the keyboard trigger is left unbound.", mapMenuKey);
+            mapMenuKey = 0;
+        }
+    }
+
     // Public getters return copies so callers cannot modify the stored settings.
-    std::uint32_t GetOpenSelectorKey() { return openSelectorKey; }
-    bool GetOpenMapAfterSelection()    { return openMapAfterSelection; }
+    std::uint32_t GetMapMenuKey()      { return mapMenuKey; }
+    std::uint32_t GetMapMenuButton()   { return mapMenuButton; }
     bool GetPersistSelection()         { return persistSelection; }
-    bool GetAllowChooserOutsideMap()   { return allowChooserOutsideMap; }
-    bool GetAllowChooserWhileMapOpen() { return allowChooserWhileMapOpen; }
     bool GetShowMapMenuKeyHint()           { return showMapMenuKeyHint; }
     bool GetShowMapMenuKeyHintOnLocalMap() { return showMapMenuKeyHintOnLocalMap; }
     std::size_t GetMapsPerPage()           { return mapsPerPage; }

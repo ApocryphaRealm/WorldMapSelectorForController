@@ -3,11 +3,11 @@
 namespace WMS::Config
 {
     void Load();
-    std::uint32_t GetOpenSelectorKey();
-    bool GetOpenMapAfterSelection();
+    // Leaves the keyboard trigger unbound when the menu framework reserves its key. Call once all plugins are loaded.
+    void ApplyFrameworkReservedKeys();
+    std::uint32_t GetMapMenuKey();    // DirectInput scan code; 0 turns the keyboard trigger off
+    std::uint32_t GetMapMenuButton(); // XInput button mask; 0 turns the controller trigger off
     bool GetPersistSelection();
-    bool GetAllowChooserOutsideMap();
-    bool GetAllowChooserWhileMapOpen();
     bool GetShowMapMenuKeyHint();
     bool GetShowMapMenuKeyHintOnLocalMap();
     std::size_t GetMapsPerPage();

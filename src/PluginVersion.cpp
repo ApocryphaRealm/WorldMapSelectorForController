@@ -3,8 +3,8 @@
 
 SKSEPluginInfo(
     .Version = REL::Version{ WMS_VERSION_MAJOR, WMS_VERSION_MINOR, WMS_VERSION_PATCH, WMS_VERSION_TWEAK },
-    .Name = "WorldMapSelector"sv,
-    .Author = "Apocrypher00"sv,
+    .Name = "WorldMapSelectorForController"sv,
+    .Author = "ApocryphaRealm"sv,
     .SupportEmail = ""sv,
     .StructCompatibility = SKSE::StructCompatibility::Independent,
     .RuntimeCompatibility = {

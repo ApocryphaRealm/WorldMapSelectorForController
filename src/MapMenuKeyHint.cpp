@@ -1,5 +1,9 @@
 #include "Config.h"
+#include "MapChooserInput.h"
 #include "MapMenuKeyHint.h"
+#include "Strings.h"
+
+#include <bit>
 
 namespace WMS::MapMenuKeyHint
 {
@@ -16,13 +20,20 @@ namespace WMS::MapMenuKeyHint
             return buttonPanel.GetMember("buttons", &buttons) && buttons.IsArray();
         }
 
+        // The hint's text in the game's language. Static so the string outlives every GFxValue that points at it.
+        const std::string& HintLabel()
+        {
+            static const std::string label = TR("WMSFC_SelectMap", "Select Map");
+            return label;
+        }
+
         bool IsButtonConfigured(const RE::GFxValue& button)
         {
             // SkyUI's clearButtons method empties each label during a platform rebuild.
             // A retained label therefore means our entry is already present and needs no work.
             RE::GFxValue label;
             return button.GetMember("label", &label) && label.IsString() &&
-                   std::string_view(label.GetString()) == "Select Map";
+                   std::string_view(label.GetString()) == HintLabel();
         }
 
         bool CreateSkyUIButton(RE::GFxValue& buttonPanel, RE::GFxValue& buttons, RE::GFxValue& button)
@@ -76,15 +87,39 @@ namespace WMS::MapMenuKeyHint
             return buttonPanel.SetMember("maxButtons", buttons.GetArraySize());
         }
 
-        void CreateButtonData(RE::GFxMovieView* movie, RE::GFxValue& buttonData)
+        // SkyUI's button art reads SKSE key codes: keyboard scan codes as they are, controller buttons as
+        // 266 + the button's index (D-pad up 266 ... Y 279, LT 280, RT 281). Returns 0 for a mask with no art.
+        std::uint32_t GamepadMaskToSkseKeyCode(std::uint32_t mask)
         {
-            // Describe the configured key using the same object format as SkyUI's built-in hints.
+            switch (mask) {
+                case 0x0009: return 280;  // left trigger
+                case 0x000A: return 281;  // right trigger
+                default: break;
+            }
+            if (mask == 0 || (mask & (mask - 1)) != 0) return 0;  // not exactly one button
+            auto index = static_cast<std::uint32_t>(std::countr_zero(mask));
+            if (index >= 12) index -= 2;  // XInput leaves bits 10 and 11 unused
+            return index <= 13 ? 266 + index : 0;
+        }
+
+        // The key SkyUI should draw: the controller button while the controller is in use, else the keyboard key.
+        std::uint32_t HintKeyCode()
+        {
+            if (MapChooserInput::LastInputWasGamepad()) {
+                if (const auto code = GamepadMaskToSkseKeyCode(Config::GetMapMenuButton())) return code;
+            }
+            return Config::GetMapMenuKey();
+        }
+
+        void CreateButtonData(RE::GFxMovieView* movie, RE::GFxValue& buttonData, const std::string& label)
+        {
+            // Describe the trigger using the same object format as SkyUI's built-in hints.
             RE::GFxValue controls;
             movie->CreateObject(&controls);
-            controls.SetMember("keyCode", Config::GetOpenSelectorKey());
+            controls.SetMember("keyCode", HintKeyCode());
 
             movie->CreateObject(&buttonData);
-            buttonData.SetMember("text", "Select Map");
+            buttonData.SetMember("text", label.c_str());
             buttonData.SetMember("controls", controls);
         }
 
@@ -138,7 +173,7 @@ namespace WMS::MapMenuKeyHint
 
     void Show()
     {
-        if (!Config::GetAllowChooserWhileMapOpen() || !Config::GetShowMapMenuKeyHint()) {
+        if (!Config::GetShowMapMenuKeyHint()) {
             return;
         }
 
@@ -180,7 +215,7 @@ namespace WMS::MapMenuKeyHint
         }
 
         RE::GFxValue buttonData;
-        CreateButtonData(movie, buttonData);
+        CreateButtonData(movie, buttonData, HintLabel());
 
         // Add the new entry through SkyUI's normal population and layout methods.
         const auto buttonCount = buttons.GetArraySize();
@@ -203,7 +238,7 @@ namespace WMS::MapMenuKeyHint
             return;
         }
 
-        SKSE::log::debug("Added a separate SkyUI MapMenu key hint for scan code 0x{:02X}.", Config::GetOpenSelectorKey());
+        SKSE::log::debug("Added a separate SkyUI MapMenu key hint for SKSE key code {}.", HintKeyCode());
     }
 
     void RefreshAfterInputModeChange()
