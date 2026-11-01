@@ -20,6 +20,9 @@ namespace WMS::MapChooserInput
     // True when this button is the chooser's trigger (MapMenuKey on the keyboard, MapMenuButton on the controller).
     bool IsTrigger(const RE::ButtonEvent& button);
 
+    // True while the world map (MapMenu) is open.
+    bool IsMapMenuOpen();
+
     // The menu framework's input callback (game thread, before the input reaches any other plugin or Papyrus) hands
     // the trigger's press here. Opens the map list panel when the world map is open; true when it opened, and the
     // caller then claims the press so no other mod's key or button acts on it. Outside the world map: false.

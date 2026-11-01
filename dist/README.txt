@@ -4,7 +4,7 @@ Version 1.0.0
 View and fast travel from world maps other than the one you are in. Open the world map and press
 D-pad up on a controller, or C on the keyboard, to open the list of maps down the right side of
 the map (scroll with the D-pad, stick or wheel; A or Enter chooses; B or Esc closes). Outside the
-world map neither press does anything. In the world map the chooser keeps its presses to itself:
+world map the mod leaves both to the game (C stays the game's Auto-Move). In the world map the chooser keeps its presses to itself:
 the press that opens it and every key or button it acts on never reach another mod's hotkey or a
 script's key event (needs the Apocrypha Menu Framework).
 
@@ -24,3 +24,9 @@ Log: Documents\My Games\Skyrim Special Edition\SKSE\WorldMapSelectorForControlle
 Built on World Map Selector by Apocrypher00 (Nexus 187315), released under the Unlicense.
 The DLL links CommonLibSSE NG and is distributed under GPL-3.0-or-later with its exceptions;
 licence texts: SKSE\Plugins\WorldMapSelectorForController\Licenses\
+
+WHAT CHANGED IN 1.0.1
+Version 1.0.1
+Fixed the chooser's keyboard key (C) reaching the game's Auto-Move when it was pressed in the world map while the list was already open and still held as the map closed.
+Fixed the settings page's sliders keeping a typed value past the end of their range.
+Updated the description: outside the world map C keeps its vanilla Auto-Move.

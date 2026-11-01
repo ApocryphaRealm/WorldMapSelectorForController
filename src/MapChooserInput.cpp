@@ -14,12 +14,6 @@ namespace WMS::MapChooserInput
         std::atomic<std::uint32_t> opensFromGamepad { 0 };
         std::atomic<std::uint32_t> ignoredOutsideMap { 0 };
 
-        bool IsMapMenuOpen()
-        {
-            auto* ui = RE::UI::GetSingleton();
-            return ui && ui->IsMenuOpen(RE::MapMenu::MENU_NAME);
-        }
-
         // The sink receives linked lists of input events from Skyrim.
         class InputEventSink final : public RE::BSTEventSink<RE::InputEvent*>
         {
@@ -162,6 +156,12 @@ namespace WMS::MapChooserInput
         if (isKey) ++opensFromKeyboard; else ++opensFromGamepad;
         SKSE::log::debug("Map chooser {} 0x{:X} pressed in MapMenu; the panel opened and the press is kept from the game and other mods.", isKey ? "key" : "button", button.GetIDCode());
         return true;
+    }
+
+    bool IsMapMenuOpen()
+    {
+        auto* ui = RE::UI::GetSingleton();
+        return ui && ui->IsMenuOpen(RE::MapMenu::MENU_NAME);
     }
 
     bool LastInputWasGamepad() { return lastInputWasGamepad; }

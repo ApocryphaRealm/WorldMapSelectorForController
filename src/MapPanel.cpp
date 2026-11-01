@@ -292,6 +292,17 @@ namespace WMS::MapPanel
                     RememberClaimed(*pressed);
                     return true;
                 }
+                // The keyboard trigger pressed in the world map when it did not open the panel (the panel was already
+                // open or closing, or a message box was up): kept from the game until its release as well. C is
+                // Auto-Move in vanilla gameplay; a C held while the map closes would otherwise reach gameplay with its
+                // repeats and release (a player report on the mod page, 2026-10-29: players without Unbind Vanilla Controls).
+                // Keyboard only: D-pad up still moves through a message box over the map.
+                if (pressed->IsDown() && pressed->GetDevice() == RE::INPUT_DEVICE::kKeyboard &&
+                    MapChooserInput::IsTrigger(*pressed) && MapChooserInput::IsMapMenuOpen()) {
+                    RememberClaimed(*pressed);
+                    SKSE::log::debug("Map chooser key 0x{:X} pressed in MapMenu without opening the panel; kept from the game until released.", pressed->GetIDCode());
+                    return true;
+                }
             }
 
             if (static_cast<State>(state.load()) == State::kClosed) return false;

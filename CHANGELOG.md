@@ -8,6 +8,15 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
+## 1.0.1 - 2026-10-31 - untested
+
+### Fixed
+- The keyboard key that opens the chooser (C by default) can no longer reach the game's Auto-Move from the world map. C is Auto-Move in vanilla gameplay; a C pressed in the map while the panel was already open, or while a message box was up, was passed on, so if it was still held as the map closed its repeats and release landed in gameplay. Every press of the chooser's key in the world map is now kept from the game until it is let go, even after the map has closed. Players with Unbind Vanilla Controls (where C is unbound) see no change. Needs the Apocrypha Menu Framework, as the other kept presses do.
+- The settings page's sliders clamp a typed value (Ctrl+click) to their range inside the menu framework and again afterwards, so a number typed past the end of the width or text-size slider cannot be kept or re-applied every frame.
+
+### Changed
+- The description no longer says C "does nothing" outside the world map: outside the map the mod leaves the key and button to the game, so C keeps its vanilla Auto-Move there and D-pad up whatever your layout gives it.
+
 ## 1.0.0 - 2026-10-23 - working
 
 ### Added

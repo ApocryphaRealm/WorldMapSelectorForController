@@ -4,7 +4,7 @@ Version 1.0.0
 
 An SKSE plugin that lets you view and fast travel from world maps other than the world you are standing in -
 open the Solstheim map from Skyrim, pick a Solstheim marker and travel there - with the map chooser opened by
-one button from inside the world map. No hotkey to remember in gameplay: the button does nothing anywhere else.
+one button from inside the world map. No hotkey to remember in gameplay: anywhere else the mod leaves the key and button to the game (C stays vanilla Auto-Move).
 
 ## Using it
 
