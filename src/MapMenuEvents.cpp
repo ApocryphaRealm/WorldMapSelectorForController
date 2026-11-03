@@ -1,3 +1,4 @@
+#include "Config.h"
 #include "Diagnostics.h"
 #include "MapMenuEvents.h"
 #include "MapMenuKeyHint.h"
@@ -29,6 +30,7 @@ namespace WMS::MapMenuEvents
                         // MapMenu construction has already asked the resolver for its worldspace.
                         // Freeze that decision for this menu instance.
                         WorldspaceOverride::BeginSession();
+                        Config::ReloadControls();
                         Diagnostics::LogWorldspaceState();
                         MapMenuKeyHint::Show();
                     } else {

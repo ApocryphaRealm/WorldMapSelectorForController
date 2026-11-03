@@ -44,6 +44,21 @@ namespace
     }
 }
 
+namespace
+{
+    // The mod stood down because the original World Map Selector is on. The log alone left a player pressing a button that
+    // did nothing with no idea why (the owner's report, 2026-11-03), so it says so in game, on every load, until one is off.
+    void OnSKSEMessageStoodDown(SKSE::MessagingInterface::Message* message)
+    {
+        if (!message) { return; }
+        if (message->type == SKSE::MessagingInterface::kDataLoaded) {
+            WMS::Strings::Load();
+        } else if (message->type == SKSE::MessagingInterface::kPostLoadGame || message->type == SKSE::MessagingInterface::kNewGame) {
+            RE::SendHUDMessage::ShowHUDMessage(TR("WMSFC_OriginalInstalled", "World Map Selector for Controller is off: the original World Map Selector is on too. Turn one of them off.").c_str());
+        }
+    }
+}
+
 // SKSE calls this exported entry point when it loads the DLL.
 // Returning true accepts the plugin; returning false tells SKSE that initialization failed.
 SKSEPluginLoad(const SKSE::LoadInterface* skse)
@@ -66,6 +81,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
     if (REX::W32::GetModuleHandleW(L"WorldMapSelector.dll")) {
         SKSE::log::error("The original World Map Selector (WorldMapSelector.dll) is also installed. Disable one of the two; "
                          "World Map Selector for Controller stays inactive this session.");
+        if (auto* standDownMessaging = SKSE::GetMessagingInterface()) { standDownMessaging->RegisterListener(OnSKSEMessageStoodDown); }
         return true;
     }
 

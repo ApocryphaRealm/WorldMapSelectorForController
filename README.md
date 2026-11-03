@@ -78,7 +78,7 @@ The text face stays the framework's.
 | `WidthPercent` (`[Panel]`) | `22` | Panel width as a percentage of the screen width, 15 through 40. |
 | `TextScalePercent` (`[Panel]`) | `100` | Panel text size against the menu's normal size, 80 through 160. |
 
-The INI is read at start-up. The settings page (Apocrypha Menu Framework, "World Map Selector for Controller")
+The INI is read at start-up, and its two [Controls] keys again each time the world map opens (Unbind Vanilla Controls lists them as its Map Selector row). The settings page (Apocrypha Menu Framework, "World Map Selector for Controller")
 changes the panel's side, width and text size and the `[Behavior]` switches live, and writes them to the INI.
 
 ## Requirements and compatibility

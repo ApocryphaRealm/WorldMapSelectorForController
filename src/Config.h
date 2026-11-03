@@ -5,6 +5,9 @@ namespace WMS::Config
     void Load();
     // Leaves the keyboard trigger unbound when the menu framework reserves its key. Call once all plugins are loaded.
     void ApplyFrameworkReservedKeys();
+    // Reads MapMenuKey and MapMenuButton again; called when the world map opens, so a key set while the game runs
+    // (Unbind Vanilla Controls' Map Selector row writes these two) applies at the next map.
+    void ReloadControls();
     std::uint32_t GetMapMenuKey();    // DirectInput scan code; 0 turns the keyboard trigger off
     std::uint32_t GetMapMenuButton(); // XInput button mask; 0 turns the controller trigger off
     bool GetPersistSelection();

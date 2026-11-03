@@ -16,8 +16,12 @@ namespace WMS::Config
         auto logLevel                 = spdlog::level::info; // This default actually needs to be applied
         // The chooser opens only while MapMenu is open. These two defaults must match the shipped INI (rule 16)
         // and DEFAULT-KEYS.md.
-        std::uint32_t mapMenuKey      = 0x2E;   // DirectInput scan code: C
-        std::uint32_t mapMenuButton   = 0x0001; // XInput button mask: D-pad up
+        std::atomic<std::uint32_t> mapMenuKey    { 0x2E };   // DirectInput scan code: C
+        std::atomic<std::uint32_t> mapMenuButton { 0x0001 }; // XInput button mask: D-pad up
+        // What the file said at the last read: the framework may have cleared mapMenuKey since, and that stays cleared
+        // until the file names another key.
+        std::uint32_t fileMapMenuKey    = 0x2E;
+        std::uint32_t fileMapMenuButton = 0x0001;
         // Atomic: the settings page writes these on the render thread while the game and input threads read them.
         std::atomic<bool> persistSelection             { true };
         std::atomic<bool> showMapMenuKeyHint           { true };
@@ -235,8 +239,10 @@ namespace WMS::Config
 
 		// Read each setting from the INI file, leaving the default value unchanged if the key is missing or invalid.
         ReadLogLevel(ini);
-        ReadControlCode(ini, "MapMenuKey", 0xFF, mapMenuKey);
-        ReadControlCode(ini, "MapMenuButton", 0xFFFF, mapMenuButton);
+        ReadControlCode(ini, "MapMenuKey", 0xFF, fileMapMenuKey);
+        ReadControlCode(ini, "MapMenuButton", 0xFFFF, fileMapMenuButton);
+        mapMenuKey = fileMapMenuKey;
+        mapMenuButton = fileMapMenuButton;
         WarnRetiredKeys(ini);
         ReadBool(ini, "ShowMapMenuKeyHint", showMapMenuKeyHint);
         ReadBool(ini, "ShowMapMenuKeyHintOnLocalMap", showMapMenuKeyHintOnLocalMap);
@@ -252,7 +258,7 @@ namespace WMS::Config
 
         SKSE::log::info(
             "Loaded configuration: LogLevel={}, MapMenuKey=0x{:02X}, MapMenuButton=0x{:04X}, ShowMapMenuKeyHint={}, ShowMapMenuKeyHintOnLocalMap={}, MapsPerPage={}, ShowCancelButton={}, ShowClearSelectionButton={}, PersistSelection={}, Panel Side={}, WidthPercent={}, TextScalePercent={}, IncludedWorldspaces={}, ExcludedWorldspaces={}.",
-            spdlog::level::to_string_view(logLevel), mapMenuKey, mapMenuButton, showMapMenuKeyHint.load(), showMapMenuKeyHintOnLocalMap.load(), mapsPerPage, showCancelButton, showClearSelectionButton.load(), persistSelection.load(),
+            spdlog::level::to_string_view(logLevel), mapMenuKey.load(), mapMenuButton.load(), showMapMenuKeyHint.load(), showMapMenuKeyHintOnLocalMap.load(), mapsPerPage, showCancelButton, showClearSelectionButton.load(), persistSelection.load(),
             panelSide.load() == static_cast<int>(PanelSide::kLeft) ? "Left" : "Right", panelWidth.load(), panelTextScale.load(),
             includedWorldspaces.empty() ? "<all>" : fmt::format("{} entr{}", includedWorldspaces.size(), includedWorldspaces.size() == 1 ? "y" : "ies"),
             excludedWorldspaces.empty() ? "<none>" : fmt::format("{} entr{}", excludedWorldspaces.size(), excludedWorldspaces.size() == 1 ? "y" : "ies")
@@ -283,10 +289,27 @@ namespace WMS::Config
         if (!reserved.empty()) reserved.resize(func(reserved.data(), static_cast<std::uint32_t>(reserved.size())));
         SKSE::log::debug("The menu framework reserves {} key(s).", reserved.size());
 
-        if (mapMenuKey != 0 && std::ranges::find(reserved, static_cast<std::int32_t>(mapMenuKey)) != reserved.end()) {
-            SKSE::log::warn("MapMenuKey 0x{:02X} is reserved by the menu framework; the keyboard trigger is left unbound.", mapMenuKey);
+        if (mapMenuKey != 0 && std::ranges::find(reserved, static_cast<std::int32_t>(mapMenuKey.load())) != reserved.end()) {
+            SKSE::log::warn("MapMenuKey 0x{:02X} is reserved by the menu framework; the keyboard trigger is left unbound.", mapMenuKey.load());
             mapMenuKey = 0;
         }
+    }
+
+    void ReloadControls()
+    {
+        CSimpleIniA ini;
+        if (ini.LoadFile(configPath.c_str()) < SI_OK) { return; }
+        std::uint32_t key = fileMapMenuKey;
+        std::uint32_t button = fileMapMenuButton;
+        ReadControlCode(ini, "MapMenuKey", 0xFF, key);
+        ReadControlCode(ini, "MapMenuButton", 0xFFFF, button);
+        if (key == fileMapMenuKey && button == fileMapMenuButton) { return; }
+        fileMapMenuKey = key;
+        fileMapMenuButton = button;
+        mapMenuKey = key;
+        mapMenuButton = button;
+        SKSE::log::info("The INI changed: MapMenuKey=0x{:02X}, MapMenuButton=0x{:04X}.", key, button);
+        ApplyFrameworkReservedKeys();
     }
 
     // Public getters return copies so callers cannot modify the stored settings.
