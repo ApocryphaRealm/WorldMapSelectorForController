@@ -1,3 +1,6 @@
+#define NOMINMAX
+#include "SKSEMenuFramework.h"
+
 #include "Config.h"
 #include "MapChooser.h"
 #include "MapChooserInput.h"
@@ -147,6 +150,7 @@ namespace WMS::MapChooserInput
             }
             return false;
         }
+        if (SKSEMenuFramework::IsAnyBlockingWindowOpened()) return false;
         lastInputWasGamepad = !isKey;
         MapPanel::Open();
         if (!MapPanel::IsOpen()) {

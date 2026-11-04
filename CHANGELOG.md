@@ -8,6 +8,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
+## 1.0.2 - 2026-11-04 - untested
+
+### Fixed
+- The chooser's trigger no longer opens the map list panel while another menu framework window that blocks input is open, such as Map Marker List's panel; the press is passed on to that window.
+
 ## 1.0.1 - 2026-11-03 - untested
 
 ### Fixed
