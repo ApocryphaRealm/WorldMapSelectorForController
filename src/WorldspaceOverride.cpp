@@ -67,11 +67,14 @@ namespace WMS::WorldspaceOverride
             }
 
             // An explicit selection wins, including a choice of the parent's map from inside the child world.
+            // Standing in such a world, vanilla's answer is the parent's map but vanilla's markers are the player's world's, so
+            // a choice of the parent's map is a real redirect: without one, Skyrim's map showed Dayspring Canyon's markers.
+            auto* playerWorld = PlayerWorldVanillaOverlooks(actualWorldspace);
             auto* requestedWorldspace = MapSelection::GetSelectedWorldspace();
             if (!requestedWorldspace) {
-                requestedWorldspace = PlayerWorldVanillaOverlooks(actualWorldspace);
+                requestedWorldspace = playerWorld;
             }
-            if (!requestedWorldspace || requestedWorldspace == actualWorldspace) {
+            if (!requestedWorldspace || (requestedWorldspace == actualWorldspace && !playerWorld)) {
                 selectedMapWorldspace.store(nullptr, std::memory_order_release);
 
                 // The conditional operator constructs the appropriate log text.

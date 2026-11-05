@@ -115,8 +115,8 @@ Without World Map Render: the 7 above and `Built map catalog with 7`.
 
 Own-world map (1.1.0, the resolver hook), with World Map Render. Inside Dayspring Canyon: the map opens on Dayspring Canyon
 (log `Map selection: DLC1HunterHQWorld -> ...`), the player's mark is on it, its row says [Here], a quest marker that leads
-out of the canyon still shows, and the local map tab looks as before. Choose Skyrim: Skyrim's map, and it stays so on
-reopening. [Clear Selection]: back to Dayspring Canyon at once. In Whiterun: Skyrim's map, Skyrim [Here]. In an interior:
+out of the canyon still shows, and the local map tab looks as before. Choose Skyrim: Skyrim's map with Skyrim's markers (log `Remote map 0000003C`,
+not `Default (requested map 0000003C is current)`), and it stays so on reopening. [Clear Selection]: back to Dayspring Canyon at once. In Whiterun: Skyrim's map, Skyrim [Here]. In an interior:
 the game's answer. Without World Map Render, in Dayspring Canyon: Skyrim's map, no `Map selection: DLC1HunterHQWorld` line.
 
 ## Which worldspaces are listed (checked 2026-10-23, before 1.1.0)
