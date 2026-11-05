@@ -17,6 +17,7 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 
 ### Fixed
 - Beyond Skyrim's Bruma is called Bruma in the chooser, not Tamriel (its record's name).
+- Inside a child world that owns its map (Dayspring Canyon and the others World Map Render gives a map), the world map opens on that world, with the player's mark, and the list tags it [Here]; it opened on Skyrim's before, because the game answers with the parent's map whatever the flag says. A map chosen in the list still wins. Cities and other worlds that keep the Use Map Data flag, worlds with no map bounds, and interiors keep the game's answer, so nothing changes without World Map Render. [Clear Selection] goes back to that world's map.
 - The list of maps no longer depends on which DLL handles the game's data-loaded message first. It is read again each time the chooser opens, and once more after data load for the settings page, so a land World Map Render gives its own map (Blackreach, Dayspring Canyon, Forgotten Vale, Sovngarde, Apocrypha, Skuldafn) is listed. A world that uses its parent's map stays out when nothing gives it one.
 - The chooser's trigger no longer opens the map list panel while another menu framework window that blocks input is open, such as Map Marker List's panel; the press is passed on to that window.
 

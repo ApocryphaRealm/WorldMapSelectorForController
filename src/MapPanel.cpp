@@ -142,7 +142,7 @@ namespace WMS::MapPanel
                 case RowType::kClearSelection:
                     MapSelection::SelectDefault();
                     RE::SendHUDMessage::ShowHUDMessage(TR("WMSFC_SelectionCleared", "World map selection cleared.").c_str());
-                    if (WorldspaceOverride::GetSelectedMapWorldspace()) {
+                    if (WorldspaceOverride::GetShownMapWorldspace() != WorldspaceOverride::GetPlayerMapWorldspace()) {
                         // Another map is on screen: go back to the player's own map now, as any other choice does.
                         SKSE::log::info("Map list panel cleared the map selection; switching back to the player's map.");
                         MapSwitchFlow::ConfigureInsideMap();

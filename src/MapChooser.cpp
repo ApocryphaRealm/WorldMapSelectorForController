@@ -53,7 +53,7 @@ namespace WMS::MapChooser
         // Return the most authoritative available source, falling back as needed.
         RE::TESWorldSpace* GetCurrentWorldspace()
         {
-            if (auto* worldspace = WorldspaceOverride::GetActualMapWorldspace()) {
+            if (auto* worldspace = WorldspaceOverride::GetPlayerMapWorldspace()) {
                 return worldspace;
             }
 
@@ -106,7 +106,7 @@ namespace WMS::MapChooser
                 case ActionType::kClearSelection:
                     MapSelection::SelectDefault();
                     RE::SendHUDMessage::ShowHUDMessage(TR("WMSFC_SelectionCleared", "World map selection cleared.").c_str());
-                    if (WorldspaceOverride::GetSelectedMapWorldspace()) {
+                    if (WorldspaceOverride::GetShownMapWorldspace() != WorldspaceOverride::GetPlayerMapWorldspace()) {
                         // Another map is on screen: the switch flow set when the chooser opened in the map takes it back
                         // to the player's own map now.
                         SKSE::log::info("Map chooser cleared the map selection; switching back to the player's map.");

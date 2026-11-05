@@ -19,17 +19,6 @@ namespace WMS::WorldspaceCatalog
             return text && text[0] ? text : std::string(fallback);
         }
 
-        bool IsMapCandidate(RE::TESWorldSpace* worldspace)
-        {
-			// Only list worldspaces that own their own map data.
-            if (!worldspace || GetMapOwner(worldspace) != worldspace) return false;
-
-            // A usable world map needs non-degenerate cell bounds.
-            // This also admits map data supplied to normally mapless worlds by mods.
-            const auto& map = worldspace->worldMapData;
-            return map.nwCellX != map.seCellX || map.nwCellY != map.seCellY;
-        }
-
         // Mark every option that shares its displayed name with another map.
         // This runs once while building the catalog rather than for every chooser button.
         void MarkDuplicateDisplayNames(std::vector<MapOption>& options)
@@ -89,7 +78,7 @@ namespace WMS::WorldspaceCatalog
 
         // Range-based for visits every loaded TESWorldSpace form.
         for (auto* worldspace : dataHandler->GetFormArray<RE::TESWorldSpace>()) {
-            if (!IsMapCandidate(worldspace)) continue;
+            if (!OwnsUsableMap(worldspace)) continue;
 
             const auto editorID = SafeText(worldspace->GetFormEditorID(), "");
             if (!Config::IsWorldspaceIncluded(editorID)) {
@@ -136,6 +125,17 @@ namespace WMS::WorldspaceCatalog
                 entry.displayName, entry.editorID.empty() ? "<none>" : entry.editorID, entry.worldspace->GetFormID(), entry.pluginName
             );
         }
+    }
+
+    bool OwnsUsableMap(RE::TESWorldSpace* worldspace)
+    {
+        // Only worldspaces that own their own map data.
+        if (!worldspace || GetMapOwner(worldspace) != worldspace) return false;
+
+        // A usable world map needs non-degenerate cell bounds.
+        // This also admits map data supplied to normally mapless worlds by mods.
+        const auto& map = worldspace->worldMapData;
+        return map.nwCellX != map.seCellX || map.nwCellY != map.seCellY;
     }
 
     RE::TESWorldSpace* GetMapOwner(RE::TESWorldSpace* worldspace)

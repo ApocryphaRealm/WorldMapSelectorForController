@@ -1,5 +1,6 @@
 #include "Hooks.h"
 #include "MapSelection.h"
+#include "WorldspaceCatalog.h"
 #include "WorldspaceOverride.h"
 
 namespace WMS::WorldspaceOverride
@@ -35,6 +36,17 @@ namespace WMS::WorldspaceOverride
             }
         }
 
+        // Vanilla answers with the parent's map in a child world even when the Use Map Data flag is off (World Map Render
+        // clears it for its lands; seen in Dayspring Canyon). Returns the player's world when that is the case, else null.
+        // A world holding the flag (cities, and on a plain list every child world), an interior (no worldspace) and a child
+        // world with no map bounds all return null, so vanilla's answer stands for them.
+        RE::TESWorldSpace* PlayerWorldVanillaOverlooks(RE::TESWorldSpace* actualWorldspace)
+        {
+            const auto* player = RE::PlayerCharacter::GetSingleton();
+            auto* here = player ? player->GetWorldspace() : nullptr;
+            return here && here != actualWorldspace && WorldspaceCatalog::OwnsUsableMap(here) ? here : nullptr;
+        }
+
         RE::TESWorldSpace* ResolveMapWorldSpaceHook()
         {
             // Call the trampoline supplied by MinHook to obtain vanilla's answer.
@@ -54,7 +66,11 @@ namespace WMS::WorldspaceOverride
                 return actualWorldspace;
             }
 
+            // An explicit selection wins, including a choice of the parent's map from inside the child world.
             auto* requestedWorldspace = MapSelection::GetSelectedWorldspace();
+            if (!requestedWorldspace) {
+                requestedWorldspace = PlayerWorldVanillaOverlooks(actualWorldspace);
+            }
             if (!requestedWorldspace || requestedWorldspace == actualWorldspace) {
                 selectedMapWorldspace.store(nullptr, std::memory_order_release);
 
@@ -83,6 +99,13 @@ namespace WMS::WorldspaceOverride
     {
         // Never call through a null function pointer if installation failed or this function is reached before the detour has been created.
         return originalResolveMapWorldSpace ? originalResolveMapWorldSpace() : nullptr;
+    }
+
+    RE::TESWorldSpace* GetPlayerMapWorldspace()
+    {
+        auto* actualWorldspace = GetActualMapWorldspace();
+        auto* here = PlayerWorldVanillaOverlooks(actualWorldspace);
+        return here ? here : actualWorldspace;
     }
 
     RE::TESWorldSpace* GetSelectedMapWorldspace()

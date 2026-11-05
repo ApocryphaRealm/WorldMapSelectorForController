@@ -54,7 +54,7 @@ namespace WMS::MapMarkerOverride
 
         // Detour for vanilla's AddCurrentLocationMarker.
         // Vanilla calls this immediately before processing the player's currentMapMarkers array.
-        // For a remote map, append markers collected from the selected worldspace, and omit the player's location marker.
+        // For a redirected map, append markers collected from its worldspace; omit the player's location marker unless they are in it.
         void AddCurrentLocationMarkerHook(RE::BSTArray<RE::MapMenuMarker>* mapMarkers, RE::NiPoint3* playerMarkerPosition)
         {
             suppressActualWorldMarkers = false;
@@ -68,6 +68,13 @@ namespace WMS::MapMarkerOverride
             }
 
             if (!mapMarkers) return;
+
+            // The map of the world the player is standing in is not remote: their own mark stays, and their
+            // coordinates are this map's.
+            const auto* player = RE::PlayerCharacter::GetSingleton();
+            if (player && player->GetWorldspace() == selectedWorldspace) {
+                originalAddCurrentLocationMarker(mapMarkers, playerMarkerPosition);
+            }
 
 			// Collect all map marker handles from the selected worldspace.
 			selectedMapMarkerHandles.clear();

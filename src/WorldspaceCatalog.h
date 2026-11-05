@@ -17,6 +17,8 @@ namespace WMS::WorldspaceCatalog
     // the map opening, so this is run again each time a chooser asks for its list.
     void Build();
     RE::TESWorldSpace* GetMapOwner(RE::TESWorldSpace* worldspace);
+    // This world does not take its parent's map, and has map bounds to draw: the list's test, and the redirect's.
+    bool OwnsUsableMap(RE::TESWorldSpace* worldspace);
     // What a chooser lists: the worlds found by a fresh Build, without the hidden ones. Main thread.
     std::vector<MapOption> GetOrderedOptions(RE::TESWorldSpace* currentWorldspace, RE::TESWorldSpace* selectedWorldspace);
     // Every world found, hidden ones too, by name: the settings page's switches. Any thread.
