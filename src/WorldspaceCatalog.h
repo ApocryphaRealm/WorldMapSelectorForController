@@ -13,7 +13,12 @@ namespace WMS::WorldspaceCatalog
         bool hasDuplicateDisplayName = false;
     };
 
+    // Finds every world that owns a map right now. Another plugin may give a world its own map at any point up to
+    // the map opening, so this is run again each time a chooser asks for its list.
     void Build();
     RE::TESWorldSpace* GetMapOwner(RE::TESWorldSpace* worldspace);
+    // What a chooser lists: the worlds found by a fresh Build, without the hidden ones. Main thread.
     std::vector<MapOption> GetOrderedOptions(RE::TESWorldSpace* currentWorldspace, RE::TESWorldSpace* selectedWorldspace);
+    // Every world found, hidden ones too, by name: the settings page's switches. Any thread.
+    std::vector<MapOption> GetAllOptions();
 }

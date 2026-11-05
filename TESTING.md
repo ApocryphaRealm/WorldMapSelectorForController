@@ -90,7 +90,30 @@ scrolled with fake rows, after Side=Left; the log lines; tool JSON before/after.
 -Dll "<installed DLL>"`. Close the game gracefully (TestBench `qqq`, then CloseMainWindow), delete only this run's
 save, restore modlist.txt and the INI's `[Panel]` values, release the lock.
 
-## Which worldspaces are listed (checked 2026-10-23)
+## Which worldspaces are listed (checked 2026-11-05, 1.1.0)
+
+The rule is unchanged: a world is listed when it owns its map (no Use Map Data flag) and its map cell bounds are not
+degenerate. What changed is when it is asked: at each chooser open and once after every DLL has had kDataLoaded, so
+World Map Render clearing the flag and writing the bounds is seen whichever DLL runs first. A world that shares its
+parent's map stays out, because its record has no MNAM of its own: every world with the flag in the Njordlinger Test
+load order has none, so its map bounds are zero and there would be nothing to show but the parent's map.
+
+Njordlinger Test, winning WRLD records (65 worlds, 1672 active plugins):
+
+- Own map from their records, listed with or without World Map Render: Tamriel (Skyrim), DLC2SolstheimWorld
+  (Solstheim), DLC01SoulCairn (Soul Cairn), ECSSShiveringIsles (Shivering Isles), BSHeartland (FULL says Tamriel, the
+  INI says Bruma), WyrmstoothWorld (Wyrmstooth), BSKHyorkerIsle (Hjorkvild Isles).
+- Use Map Data and no MNAM, listed only when World Map Render 754bceb or later gives them a map: Blackreach,
+  DLC01FalmerValley (Forgotten Vale), DLC1HunterHQWorld (Dayspring Canyon), Sovngarde, DLC2ApocryphaWorld (Apocrypha),
+  SkuldafnWorld (Skuldafn).
+- City worlds and caves carry the flag and no MNAM: out. Test worlds without the flag have zero bounds: out.
+
+Steps: with World Map Render 754bceb or later, the panel lists all 13, Bruma under that name; the log has one `Map:` line
+each; `wmsfc.control {}` gives `worlds`. `wmsfc.control {"op":"hide","world":"Blackreach","hidden":1}` or the page's
+switch: Blackreach gone at the next open, `[Compatibility] ExcludedWorldspaces` carries it, still gone after a restart.
+Without World Map Render: the 7 above and `Built map catalog with 7`.
+
+## Which worldspaces are listed (checked 2026-10-23, before 1.1.0)
 
 Discovery is World Map Selector 1.4.0's, unchanged (diffed identical): a worldspace is listed when it owns its map
 data (it does not take the parent's map through the "use parent map data" flag) and its map cell bounds are not

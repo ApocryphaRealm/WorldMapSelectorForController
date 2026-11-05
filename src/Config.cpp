@@ -2,6 +2,7 @@
 #include "Utilities.h"
 
 #include <charconv>
+#include <mutex>
 #include <SimpleIni.h>
 
 namespace WMS::Config
@@ -34,7 +35,12 @@ namespace WMS::Config
         std::atomic<int> panelWidth       { kPanelWidthDefault };
         std::atomic<int> panelTextScale   { kTextScaleDefault };
         std::vector<std::string> includedWorldspaces;
-        std::vector<std::string> excludedWorldspaces { "Falskaar" };
+        // Defaults match the shipped INI (rule 16). The page's switches change this list on the render thread.
+        const std::vector<std::string> defaultExcludedWorldspaces { "Falskaar" };
+        std::vector<std::string> excludedWorldspaces = defaultExcludedWorldspaces;
+        std::mutex excludedLock;
+        // EditorID, name. An INI kept from before 1.1.0 has no [WorldspaceNames]; these still apply to it.
+        std::vector<std::pair<std::string, std::string>> worldspaceNames { { "BSHeartland", "Bruma" } };
 
         std::optional<spdlog::level::level_enum> ParseLogLevel(std::string_view text)
         {
@@ -222,6 +228,23 @@ namespace WMS::Config
                 remaining.remove_prefix(separator + 1);
             }
         }
+
+        // [WorldspaceNames]: EditorID=name. When the section is there it is the whole list, so deleting a line
+        // really gives that world its record's name back. An empty value means no override.
+        void ReadWorldspaceNames(const CSimpleIniA& ini)
+        {
+            CSimpleIniA::TNamesDepend keys;
+            if (!ini.GetAllKeys("WorldspaceNames", keys)) {
+                SKSE::log::debug("[WorldspaceNames] not specified. Keeping default.");
+                return;
+            }
+
+            worldspaceNames.clear();
+            for (const auto& key : keys) {
+                const auto name = Trim(ini.GetValue("WorldspaceNames", key.pItem, ""));
+                if (!name.empty()) worldspaceNames.emplace_back(key.pItem, name);
+            }
+        }
     }
 
     // Load the INI file and replace defaults only with settings that exist and parse successfully.
@@ -252,6 +275,7 @@ namespace WMS::Config
         ReadBool(ini, "PersistSelection", persistSelection);
         ReadWorldspaceList(ini, "IncludedWorldspaces", includedWorldspaces);
         ReadWorldspaceList(ini, "ExcludedWorldspaces", excludedWorldspaces);
+        ReadWorldspaceNames(ini);
         ReadPanelSide(ini);
         ReadPanelInt(ini, "WidthPercent", kPanelWidthMin, kPanelWidthMax, panelWidth);
         ReadPanelInt(ini, "TextScalePercent", kTextScaleMin, kTextScaleMax, panelTextScale);
@@ -351,6 +375,15 @@ namespace WMS::Config
         ini.SetValue("Panel", "Side", GetPanelSide() == PanelSide::kLeft ? "Left" : "Right");
         ini.SetValue("Panel", "WidthPercent", std::to_string(panelWidth.load()).c_str());
         ini.SetValue("Panel", "TextScalePercent", std::to_string(panelTextScale.load()).c_str());
+        {
+            std::scoped_lock lock(excludedLock);
+            std::string joined;
+            for (const auto& editorID : excludedWorldspaces) {
+                if (!joined.empty()) joined += ",";
+                joined += editorID;
+            }
+            ini.SetValue("Compatibility", "ExcludedWorldspaces", joined.c_str());
+        }
 
         const auto saveResult = ini.SaveFile(configPath.c_str());
         if (saveResult < SI_OK) {
@@ -372,6 +405,10 @@ namespace WMS::Config
         showMapMenuKeyHint = true;
         showMapMenuKeyHintOnLocalMap = false;
         showClearSelectionButton = true;
+        {
+            std::scoped_lock lock(excludedLock);
+            excludedWorldspaces = defaultExcludedWorldspaces;
+        }
         SKSE::log::info("Settings page: defaults restored.");
     }
 
@@ -381,6 +418,21 @@ namespace WMS::Config
     }
     bool IsWorldspaceExcluded(std::string_view editorID)
     {
+        std::scoped_lock lock(excludedLock);
         return std::ranges::any_of(excludedWorldspaces, [&](const auto& excluded) { return Utilities::EqualsIgnoreCase(editorID, excluded); });
+    }
+    void SetWorldspaceExcluded(std::string_view editorID, bool excluded)
+    {
+        std::scoped_lock lock(excludedLock);
+        std::erase_if(excludedWorldspaces, [&](const auto& entry) { return Utilities::EqualsIgnoreCase(editorID, entry); });
+        if (excluded) excludedWorldspaces.emplace_back(editorID);
+        SKSE::log::info("Map list: {} is now {}.", editorID, excluded ? "hidden" : "shown");
+    }
+    std::string GetWorldspaceNameOverride(std::string_view editorID)
+    {
+        for (const auto& [key, name] : worldspaceNames) {
+            if (Utilities::EqualsIgnoreCase(editorID, key)) return name;
+        }
+        return {};
     }
 }

@@ -40,4 +40,8 @@ namespace WMS::Config
     void RestoreDefaults();
     std::string GetIniPath();
     bool IsWorldspaceExcluded(std::string_view editorID);
+    // Adds a world to, or takes it from, ExcludedWorldspaces (the settings page's per-world switches). Save() writes it.
+    void SetWorldspaceExcluded(std::string_view editorID, bool excluded);
+    // The name [WorldspaceNames] gives this EditorID; empty when it gives none, and the record's own name stands.
+    std::string GetWorldspaceNameOverride(std::string_view editorID);
 }

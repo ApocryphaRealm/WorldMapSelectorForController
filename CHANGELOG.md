@@ -8,9 +8,16 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
-## 1.0.2 - 2026-11-04 - untested
+## 1.1.0 - 2026-11-05 - untested
+
+### Added
+- A switch for each world found, on the settings page under Maps in the list. Off hides that land from the chooser: it can't be chosen, and if it was the chosen map the choice goes back to the world you are in. The switches write `[Compatibility] ExcludedWorldspaces`, the list the INI already had; without the menu framework that line is the control. In the eleven languages.
+- `[WorldspaceNames]` in the INI: a world's name in the chooser, as EditorID=name, over its record's name. Ships `BSHeartland=Bruma`. An INI kept from an older version gets the same name without the section.
+- wmsfc.control: the state lists every world found under `worlds`, and op=hide is a world's switch.
 
 ### Fixed
+- Beyond Skyrim's Bruma is called Bruma in the chooser, not Tamriel (its record's name).
+- The list of maps no longer depends on which DLL handles the game's data-loaded message first. It is read again each time the chooser opens, and once more after data load for the settings page, so a land World Map Render gives its own map (Blackreach, Dayspring Canyon, Forgotten Vale, Sovngarde, Apocrypha, Skuldafn) is listed. A world that uses its parent's map stays out when nothing gives it one.
 - The chooser's trigger no longer opens the map list panel while another menu framework window that blocks input is open, such as Map Marker List's panel; the press is passed on to that window.
 
 ## 1.0.1 - 2026-11-03 - untested

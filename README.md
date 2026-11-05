@@ -49,7 +49,9 @@ The text face stays the framework's.
 
 ## Features
 
-- Finds every worldspace with usable world-map data, including maps added by other mods.
+- Finds every worldspace with usable world-map data, including maps added by other mods. The list is read again each
+  time the chooser opens, so a land another mod gives its own map at any point before that is listed. A world that
+  uses its parent's map stays out, since choosing it would only show the parent's map.
 - Switches the map scene, camera, ordinary map markers, quest markers and the custom destination marker together.
 - Fast travel across worldspaces through ordinary map markers.
 - A scrollable side panel (Apocrypha Menu Framework), with a settings page for its side, width and text size.
@@ -73,13 +75,14 @@ The text face stays the framework's.
 | `ShowCancelButton` | `true` | Shows a Cancel button in the message box (without the framework). |
 | `ShowClearSelectionButton` | `true` | Shows the option that returns map selection to the game. |
 | `IncludedWorldspaces` | *(empty)* | Comma-separated EditorIDs allowed in the chooser; empty means all. |
-| `ExcludedWorldspaces` | `Falskaar` | Comma-separated EditorIDs left out of the chooser; wins over the include list. |
+| `ExcludedWorldspaces` | `Falskaar` | Comma-separated EditorIDs hidden from the chooser; wins over the include list. The settings page's switches write this line. |
+| `[WorldspaceNames]` | `BSHeartland=Bruma` | A world's name in the chooser, as EditorID=name. Worlds not named here use their record's name. |
 | `Side` (`[Panel]`) | `Right` | Which side of the world map the panel runs down: `Right` or `Left`. |
 | `WidthPercent` (`[Panel]`) | `22` | Panel width as a percentage of the screen width, 15 through 40. |
 | `TextScalePercent` (`[Panel]`) | `100` | Panel text size against the menu's normal size, 80 through 160. |
 
 The INI is read at start-up, and its two [Controls] keys again each time the world map opens (Unbind Vanilla Controls lists them as its Map Selector row). The settings page (Apocrypha Menu Framework, "World Map Selector for Controller")
-changes the panel's side, width and text size and the `[Behavior]` switches live, and writes them to the INI.
+changes the panel's side, width and text size, the `[Behavior]` switches and a switch for each world found (Maps in the list) live, and writes them to the INI.
 
 ## Requirements and compatibility
 

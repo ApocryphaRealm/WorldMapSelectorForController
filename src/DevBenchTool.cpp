@@ -7,6 +7,7 @@
 #include "MapPanel.h"
 #include "SettingsPage.h"
 #include "Strings.h"
+#include "WorldspaceCatalog.h"
 
 // DevBench tool "wmsfc.control" (rules 31 and 64): the map list panel's and the chooser's live state, and ops that drive them.
 //   {}                                  -> state (panel geometry, rows, highlight, scroll, settings, counters)
@@ -15,6 +16,7 @@
 //   {"op":"dismiss"}                    -> closes the panel / message box without a choice
 //   {"op":"nav","rows":N}               -> moves the panel's highlight N rows (negative = up)
 //   {"op":"select"}                     -> chooses the highlighted row
+//   {"op":"hide","world":"EDID","hidden":1} -> a world's switch on the settings page
 //   {"op":"fake","count":N}             -> TEST ONLY: N extra rows the next time the panel opens, to prove it scrolls (0 = none)
 //   {"op":"settings","side":"left|right","width":W,"text":T} -> the settings page's setters, then a save to the INI
 // A real test still presses the real key / controller button; these prove the gate and the panel, not the input path.
@@ -101,16 +103,30 @@ namespace WMS::DevBenchTool
                 return;
             }
 
+            if (op == "hide") {
+                const auto world = StringField(args, "world");
+                const bool hidden = IntField(args, "hidden", 1) != 0;
+                const bool found = SettingsPage::SetWorldHiddenFromTool(world, hidden);
+                write(sink, fmt::format(R"({{"ok":{},"op":"hide","world":"{}","hidden":{}}})", found, world, hidden).c_str());
+                return;
+            }
+
+            std::string worlds;
+            for (const auto& option : WorldspaceCatalog::GetAllOptions()) {
+                if (!worlds.empty()) worlds += ",";
+                worlds += fmt::format(R"({{"editorID":"{}","name":"{}","hidden":{}}})", option.editorID, option.displayName, Config::IsWorldspaceExcluded(option.editorID));
+            }
+
             auto* ui = RE::UI::GetSingleton();
             const bool mapOpen = ui && ui->IsMenuOpen(RE::MapMenu::MENU_NAME);
             const bool boxOpen = ui && ui->IsMenuOpen(RE::MessageBoxMenu::MENU_NAME);
             const auto counters = MapChooserInput::GetCounters();
             const auto json = fmt::format(
                 R"({{"ok":true,"mapMenuOpen":{},"messageBoxOpen":{},"chooserActive":{},"panel":{},"mapMenuKey":{},"mapMenuButton":{},)"
-                R"("lastInputWasGamepad":{},"opensFromKeyboard":{},"opensFromGamepad":{},"ignoredOutsideMap":{},"language":"{}"}})",
+                R"("lastInputWasGamepad":{},"opensFromKeyboard":{},"opensFromGamepad":{},"ignoredOutsideMap":{},"language":"{}","worlds":[{}]}})",
                 mapOpen, boxOpen, MapChooser::IsActive(), MapPanel::StateJson(), Config::GetMapMenuKey(), Config::GetMapMenuButton(),
                 MapChooserInput::LastInputWasGamepad(), counters.opensFromKeyboard, counters.opensFromGamepad,
-                counters.ignoredOutsideMap, Strings::Language());
+                counters.ignoredOutsideMap, Strings::Language(), worlds);
             write(sink, json.c_str());
         }
     }
@@ -135,10 +151,11 @@ namespace WMS::DevBenchTool
             "\"description\":\"World Map Selector for Controller: the map list panel (open, rows, highlight, scroll, rectangle, side, "
             "width, text size) and the chooser's state. op=open asks for the panel through the same MapMenu-only gate a press uses; "
             "op=dismiss closes it; op=nav rows=N moves the highlight; op=select chooses it; op=fake count=N adds N test rows the next "
-            "time it opens (test only); op=settings side/width/text sets and saves the page's settings.\","
-            "\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\",\"enum\":[\"state\",\"open\",\"dismiss\",\"nav\",\"select\",\"fake\",\"settings\"]},"
+            "time it opens (test only); op=settings side/width/text sets and saves the page's settings; op=hide world=EditorID hidden=1|0 "
+            "is a world's switch on the settings page; the state's worlds lists every world found.\","
+            "\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\",\"enum\":[\"state\",\"open\",\"dismiss\",\"nav\",\"select\",\"fake\",\"settings\",\"hide\"]},"
             "\"rows\":{\"type\":\"integer\"},\"count\":{\"type\":\"integer\"},\"side\":{\"type\":\"string\",\"enum\":[\"left\",\"right\"]},"
-            "\"width\":{\"type\":\"integer\"},\"text\":{\"type\":\"integer\"}}},"
+            "\"width\":{\"type\":\"integer\"},\"text\":{\"type\":\"integer\"},\"world\":{\"type\":\"string\"},\"hidden\":{\"type\":\"integer\"}}},"
             "\"readOnly\":false"
             "}";
 

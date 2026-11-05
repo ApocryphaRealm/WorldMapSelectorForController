@@ -8,7 +8,7 @@ namespace WMS::WorldspaceCatalog
 {
     namespace
     {
-        // entries is shared by the game-start builder and later UI/command readers.
+        // entries is shared by the builder and the UI/command readers. It holds every world found, hidden ones too.
         // shared_mutex permits multiple readers but only one writer.
         std::vector<MapOption> entries;
         std::shared_mutex entriesLock;
@@ -97,40 +97,42 @@ namespace WMS::WorldspaceCatalog
                 continue;
             }
 
-            if (Config::IsWorldspaceExcluded(editorID)) {
-                SKSE::log::debug("Excluded map candidate editorID=\"{}\", FormID={:08X}.", editorID, worldspace->GetFormID());
-                continue;
-            }
-
             const auto* file = worldspace->GetFile(0);
             if (!file) {
                 SKSE::log::warn("Ignoring dynamic map candidate {:08X}; it has no originating plugin.", worldspace->GetFormID());
                 continue;
             }
 
+            // An override from the INI wins: a record's name is not always what the map should be called
+            // (BSHeartland's says Tamriel, and the land is Bruma).
+            auto overrideName = Config::GetWorldspaceNameOverride(editorID);
+
             // Designated initializers name each MapOption field being filled.
             newEntries.push_back({
                 .worldspace  = worldspace,
-                .displayName = SafeText(worldspace->GetName(), "<unnamed>"),
+                .displayName = !overrideName.empty() ? std::move(overrideName) : SafeText(worldspace->GetName(), "<unnamed>"),
                 .editorID    = editorID,
                 .pluginName  = std::string(file->GetFilename())
             });
         }
 
-        MarkDuplicateDisplayNames(newEntries);
-
+        bool changed = false;
         {
             // unique_lock excludes readers while replacing the shared catalogue.
             std::unique_lock lock(entriesLock);
+            changed = !std::ranges::equal(entries, newEntries, {}, &MapOption::worldspace, &MapOption::worldspace);
             // move transfers the vector's allocation instead of copying every entry.
             entries = std::move(newEntries);
         }
 
-        SKSE::log::info("Built map catalog with {} selectable worldspaces.", entries.size());
+        // This runs every time a chooser opens; the log only hears about a list that differs from the last one.
+        if (!changed) return;
 
+        std::shared_lock lock(entriesLock);
+        SKSE::log::info("Built map catalog with {} worldspaces that own a map.", entries.size());
         for (const auto& entry : entries) {
-            SKSE::log::debug(
-                "Selectable map: name=\"{}\", editorID=\"{}\", FormID={:08X}, plugin=\"{}\"",
+            SKSE::log::info(
+                "Map: name=\"{}\", editorID=\"{}\", FormID={:08X}, plugin=\"{}\"",
                 entry.displayName, entry.editorID.empty() ? "<none>" : entry.editorID, entry.worldspace->GetFormID(), entry.pluginName
             );
         }
@@ -153,11 +155,16 @@ namespace WMS::WorldspaceCatalog
 
     std::vector<MapOption> GetOrderedOptions(RE::TESWorldSpace* currentWorldspace, RE::TESWorldSpace* selectedWorldspace)
     {
+        Build();
+
         // Copy a stable snapshot while holding a shared/read lock, then release the lock before sorting the private copy.
         std::shared_lock lock(entriesLock);
         auto result = entries;
         lock.unlock();
 
+        std::erase_if(result, [](const MapOption& option) { return Config::IsWorldspaceExcluded(option.editorID); });
+
+        MarkDuplicateDisplayNames(result);
         std::ranges::sort(result, CompareMapOptions);
 
         auto* currentMap  = GetMapOwner(currentWorldspace);
@@ -171,6 +178,17 @@ namespace WMS::WorldspaceCatalog
             MoveToIndex(result, selectedMap, currentWasMoved ? 1 : 0);
         }
 
+        return result;
+    }
+
+    std::vector<MapOption> GetAllOptions()
+    {
+        std::shared_lock lock(entriesLock);
+        auto result = entries;
+        lock.unlock();
+
+        MarkDuplicateDisplayNames(result);
+        std::ranges::sort(result, CompareMapOptions);
         return result;
     }
 }

@@ -4,8 +4,11 @@
 #include "Toggle.h"
 
 #include "Config.h"
+#include "MapSelection.h"
 #include "SettingsPage.h"
 #include "Strings.h"
+#include "Utilities.h"
+#include "WorldspaceCatalog.h"
 
 namespace WMS::SettingsPage
 {
@@ -61,6 +64,15 @@ namespace WMS::SettingsPage
             return false;
         }
 
+        // A hidden world can't stay chosen either: the map goes back to the world the player is in.
+        void SetWorldHidden(const WorldspaceCatalog::MapOption& option, bool hidden)
+        {
+            Config::SetWorldspaceExcluded(option.editorID, hidden);
+            if (hidden && MapSelection::GetSelectedWorldspace() == option.worldspace) {
+                MapSelection::SelectDefault();
+            }
+        }
+
         void __stdcall Render()
         {
             using namespace ImGuiMCP;
@@ -103,6 +115,20 @@ namespace WMS::SettingsPage
                 TR("WMSFC_HelpHint", "Adds Select Map to SkyUI's button bar. Takes effect the next time the map opens."));
             changed |= ToggleRow(TR("WMSFC_PageHintLocal", "Show the button hint on the local map too"), Config::GetShowMapMenuKeyHintOnLocalMap(), &Config::SetShowMapMenuKeyHintOnLocalMap,
                 TR("WMSFC_HelpHintLocal", "Off by default, so it does not overlap hints that local-map mods add."));
+
+            SeparatorText(TR("WMSFC_PageWorlds", "Maps in the list").c_str());
+            for (const auto& option : WorldspaceCatalog::GetAllOptions()) {
+                if (option.editorID.empty()) continue;  // nothing to key its setting by
+                auto label = option.displayName;
+                if (option.hasDuplicateDisplayName) label += fmt::format(" ({})", option.editorID);
+                label += "##" + option.editorID;
+                bool shown = !Config::IsWorldspaceExcluded(option.editorID);
+                if (Toggle(label.c_str(), &shown)) {
+                    SetWorldHidden(option, !shown);
+                    changed = true;
+                }
+                Help(TR("WMSFC_HelpWorld", "On: this land is in the list of maps. Off: it is hidden and can't be chosen."));
+            }
 
             Spacing();
             if (Button(TR("WMSFC_PageRestore", "Restore defaults").c_str())) {
@@ -149,5 +175,17 @@ namespace WMS::SettingsPage
         if (widthPercent > 0) Config::SetPanelWidthPercent(widthPercent);
         if (textScalePercent > 0) Config::SetPanelTextScalePercent(textScalePercent);
         Config::Save();
+    }
+
+    bool SetWorldHiddenFromTool(std::string_view editorID, bool hidden)
+    {
+        for (const auto& option : WorldspaceCatalog::GetAllOptions()) {
+            if (Utilities::EqualsIgnoreCase(option.editorID, editorID)) {
+                SetWorldHidden(option, hidden);
+                Config::Save();
+                return true;
+            }
+        }
+        return false;
     }
 }

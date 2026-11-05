@@ -37,6 +37,12 @@ namespace
             // Every active plugin has finished loading and its forms have their final runtime FormIDs,
             // so it is now safe to build the map catalogue.
             WMS::WorldspaceCatalog::Build();
+            // Other DLLs act on this same message and one may give a world its own map (World Map Render clears the
+            // Use Map Data flag here), so the settings page's list is built again once they have all run. The choosers
+            // build theirs fresh when they open, so load order between the DLLs does not matter to them.
+            if (auto* tasks = SKSE::GetTaskInterface()) {
+                tasks->AddTask([] { WMS::WorldspaceCatalog::Build(); });
+            }
             // The game's language setting is final by now.
             WMS::Strings::Load();
             WMS::DevBenchTool::Init(true);
