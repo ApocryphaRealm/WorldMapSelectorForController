@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(
     WorldMapSelectorForController
-    VERSION 1.1.0
+    VERSION 1.2.0
     LANGUAGES CXX RC
 )
 
@@ -38,9 +38,17 @@ if(MSVC)
     add_compile_options("/d1trimfile:${PROJECT_NATIVE_DIR}")
 endif()
 
-add_subdirectory(extern/CommonLibVR)
-
-include("${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibVR/cmake/CommonLibSSE.cmake")
+# Build line (2026-11-07): 1 = SE 1.5.97 / AE 1.6.x on the extern/CommonLibVR submodule (CommonLibSSE-NG 3.7);
+# 17 = Skyrim 1.7.x on CommonLibSSE-NG 7.2.0 from the vcpkg overlay port in cmake/ports-17 (configure17.bat).
+set(RUNTIME_LINE "1" CACHE STRING "Build line: 1 (SE 1.5.97 / AE 1.6.x) or 17 (Skyrim 1.7.x)")
+if(RUNTIME_LINE STREQUAL "17")
+    find_package(directxtk CONFIG REQUIRED)  # CommonLibSSE-NG 7.2 links Microsoft::DirectXTK
+    find_package(CommonLibSSE CONFIG REQUIRED)
+    add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)  # the submodule build sets these for line 1
+else()
+    add_subdirectory(extern/CommonLibVR)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibVR/cmake/CommonLibSSE.cmake")
+endif()
 
 find_package(minhook CONFIG REQUIRED)
 find_path(SIMPLEINI_INCLUDE_DIR SimpleIni.h REQUIRED)
@@ -97,6 +105,7 @@ target_compile_definitions(
     ${PROJECT_NAME}
     PRIVATE
         __CMAKE_COMMONLIBSSE_PLUGIN=1
+        RUNTIME_LINE=${RUNTIME_LINE}
         WMS_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
         WMS_VERSION_MINOR=${PROJECT_VERSION_MINOR}
         WMS_VERSION_PATCH=${PROJECT_VERSION_PATCH}

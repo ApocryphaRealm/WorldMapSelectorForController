@@ -41,10 +41,23 @@
       "name": "x64-RelWithDebInfo",
       "displayName": "x64 RelWithDebInfo (the shipped build: optimized, with its PDB)",
       "inherits": "windows-x64-base",
-      "binaryDir": "${sourceDir}/build/relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/relwithdebinfo-se-only",
       "installDir": "${sourceDir}/build/install",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "build-relwithdebinfo-17",
+      "displayName": "x64 RelWithDebInfo (Skyrim 1.7.x line - CommonLibSSE-NG 7.2.0)",
+      "inherits": "windows-x64-base",
+      "binaryDir": "${sourceDir}/build/relwithdebinfo-17",
+      "installDir": "${sourceDir}/build/install-17",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/cmake/ports-17/",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/cmake/manifest-17",
+        "RUNTIME_LINE": "17"
       }
     }
   ],
@@ -52,24 +65,39 @@
     {
       "name": "x64-Debug",
       "configurePreset": "x64-Debug",
-      "targets": [ "WorldMapSelectorForController" ]
+      "targets": [
+        "WorldMapSelectorForController"
+      ]
     },
     {
       "name": "x64-Release",
       "configurePreset": "x64-Release",
-      "targets": [ "WorldMapSelectorForController" ]
+      "targets": [
+        "WorldMapSelectorForController"
+      ]
     },
     {
       "name": "x64-RelWithDebInfo",
       "configurePreset": "x64-RelWithDebInfo",
-      "targets": [ "WorldMapSelectorForController" ]
+      "targets": [
+        "WorldMapSelectorForController"
+      ]
     },
     {
       "name": "x64-Release-Package",
       "displayName": "x64 Release Package",
       "description": "Build the optimized plugin and Nexus-ready ZIP archive.",
       "configurePreset": "x64-Release",
-      "targets": [ "package" ]
+      "targets": [
+        "package"
+      ]
+    },
+    {
+      "name": "relwithdebinfo-17",
+      "configurePreset": "build-relwithdebinfo-17",
+      "targets": [
+        "WorldMapSelectorForController"
+      ]
     }
   ]
 }
