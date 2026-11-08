@@ -8,6 +8,11 @@ Written as changes happen, not reconstructed afterwards (rule 61). Each version 
 * **failed** - built but crashed or malfunctioned; the number was reclaimed
 * **scratch** - a hypothesis-test build that never held a real number
 
+## 1.2.1 - 2026-11-08 - untested
+
+### Fixed
+- SKSE no longer calls the AE 1.6 DLL incompatible on game versions it did not list (GOG 1.6.1179 and any later 1.6 or 1.7 runtime): the plugin now declares itself version independent through Address Library instead of pinning a list of runtimes that ended at 1.6.1170. Every address it uses already came from Address Library, so nothing else changed. Reported on Nexus by btach.
+
 ## 1.2.0 - 2026-11-07 - untested
 
 ### Added

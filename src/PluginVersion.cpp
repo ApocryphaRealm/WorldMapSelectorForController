@@ -7,17 +7,7 @@ SKSEPluginInfo(
     .Author = "ApocryphaRealm"sv,
     .SupportEmail = ""sv,
     .StructCompatibility = SKSE::StructCompatibility::Independent,
-    .RuntimeCompatibility = {
-        REL::Version{ 1, 5, 97, 0 },
-        REL::Version{ 1, 6, 318, 0 },
-        REL::Version{ 1, 6, 323, 0 },
-        REL::Version{ 1, 6, 342, 0 },
-        REL::Version{ 1, 6, 353, 0 },
-        REL::Version{ 1, 6, 629, 0 },
-        REL::Version{ 1, 6, 640, 0 },
-        REL::Version{ 1, 6, 1130, 0 },
-        REL::Version{ 1, 6, 1170, 0 },
-        REL::Version{ 1, 7, 99, 0 },
-        REL::Version{ 1, 7, 104, 0 }
-    }
+    // 1.2.1: Address Library, not a list of runtimes. A list made SKSE refuse every runtime missing from it as
+    // "incompatible" (GOG 1.6.1179, Nexus report 2026-11-08); every address here is an Address Library ID.
+    .RuntimeCompatibility = SKSE::VersionIndependence::AddressLibrary
 )
